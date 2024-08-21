@@ -21,8 +21,6 @@ ufw allow out 1194/udp
 ufw allow in 1194/udp
 ufw allow out 1195/udp
 ufw allow in 1195/udp
-ufw allow out 443
-ufw allow in 443
 ufw allow out 9999
 ufw allow in 9999
 ufw allow out 26656
