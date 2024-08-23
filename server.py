@@ -1,50 +1,60 @@
-from http.server import SimpleHTTPRequestHandler, HTTPServer
-from threading import Thread
-import requests
-import os
+import socket
+import threading
+import sys
 
-def get_public_ip():
-    try:
-        response = requests.get('https://api.ipify.org?format=text')
-        return response.text
-    except requests.RequestException:
-        return "Unable to get public IP"
+def handle_client(conn, addr):
+    print(f'Connected by {addr}')
+    with conn:
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
+            print(f'Received from {addr}: {data.decode()}')
+            conn.sendall(data)
 
-def get_username():
-    return os.getlogin()
-
-class HelloWorldHandler(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        # Uzyskanie publicznego IP i nazwy użytkownika
-        public_ip = get_public_ip()
-        username = get_username()
-
-        # Przygotowanie odpowiedzi
-        response = (
-            b"Hello, World!\n"
-            b"Public IP: " + public_ip.encode() + b"\n"
-            b"Username: " + username.encode() + b"\n"
-        )
-
-        # Wysłanie odpowiedzi HTTP
-        self.send_response(200)
-        self.send_header("Content-type", "text/plain")
-        self.end_headers()
-        self.wfile.write(response)
-
-def run_server(port):
-    with HTTPServer(("", port), HelloWorldHandler) as httpd:
-        print(f"Server running on port {port}")
-        httpd.serve_forever()
-
-if __name__ == "__main__":
-    ports = [443, 9999, 26656]
-    threads = []
-
+def start_server(host='0.0.0.0', ports=[443, 9999, 26656]):
     for port in ports:
-        thread = Thread(target=run_server, args=(port,))
-        thread.start()
-        threads.append(thread)
+        threading.Thread(target=listen_on_port, args=(host, port)).start()
 
-    for thread in threads:
-        thread.join()
+def listen_on_port(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, port))
+        s.listen()
+        print(f'Server is listening on {host}:{port}')
+        while True:
+            conn, addr = s.accept()
+            threading.Thread(target=handle_client, args=(conn, addr)).start()
+
+def test_connection(host, port):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((host, port))
+            s.sendall(b'Hello, Server')
+            data = s.recv(1024)
+            print(f'Received from {host}:{port}: {data.decode()}')
+    except Exception as e:
+        print(f'Failed to connect to {host}:{port}. Error: {e}')
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("Usage: python3 app.py <mode> [host] [port1] [port2] [port3] ...")
+        print("Modes: server, client")
+        sys.exit(1)
+    
+    mode = sys.argv[1].lower()
+
+    if mode == 'server':
+        ports = list(map(int, sys.argv[2:])) if len(sys.argv) > 2 else [443, 9999, 26656]
+        start_server(ports=ports)
+    elif mode == 'client':
+        if len(sys.argv) < 4:
+            print("Usage for client: python3 app.py client <host> <port1> [port2] [port3] ...")
+            sys.exit(1)
+        host = sys.argv[2]
+        ports = map(int, sys.argv[3:])
+        for port in ports:
+            print(f'Testing connection on port {port}...')
+            test_connection(host, port)
+    else:
+        print("Unknown mode. Use 'server' or 'client'.")
+        sys.exit(1)
