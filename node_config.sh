@@ -15,8 +15,6 @@ apt install -y ufw fail2ban htop
 [ $? -eq 0 ] && echo -e "${GREEN}Success install packages${NC}" || echo -e "${RED}Failed install packages${NC}"
 
 #Net configuration
-ufw default deny outgoing
-ufw default deny incoming
 ufw allow 1194
 ufw allow 1195
 ufw allow 443
