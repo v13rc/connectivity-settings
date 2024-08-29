@@ -15,9 +15,6 @@ apt install -y ufw fail2ban htop
 [ $? -eq 0 ] && echo -e "${GREEN}Success install packages${NC}" || echo -e "${RED}Failed install packages${NC}"
 
 #Net configuration
-ufw default deny incoming
-ufw default allow outgoing
-
 ufw allow 22/tcp                      # SSH dostępny z dowolnego miejsca
 ufw allow 8006/tcp                    # Proxmox Web GUI
 ufw allow 5404/tcp                    # Proxmox Cluster (cman) TCP
