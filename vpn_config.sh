@@ -15,20 +15,14 @@ apt install -y ufw fail2ban htop
 [ $? -eq 0 ] && echo -e "${GREEN}Success install packages${NC}" || echo -e "${RED}Failed install packages${NC}"
 
 #Net configuration
-ufw default deny outgoing
-ufw default deny incoming
-ufw allow out 1194/udp
-ufw allow in 1194/udp
-ufw allow out 1195/udp
-ufw allow in 1195/udp
-ufw allow out 9999
-ufw allow in 9999
-ufw allow out 26656
-ufw allow in 26656
-ufw allow in 22
-ufw allow out 22
-ufw limit 22
-ufw allow out 53
+ufw allow 1194/udp
+ufw allow 1195/udp
+ufw allow 443
+ufw allow 80
+ufw allow 9999
+ufw allow 26656
+ufw allow ssh/tcp
+ufw limit ssh/tcp
 ufw --force enable
 [ $? -eq 0 ] && echo -e "${GREEN}Success firewall configuration${NC}" || echo -e "${RED}Failed firewall configuration${NC}"
 
