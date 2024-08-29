@@ -15,8 +15,21 @@ apt install -y ufw fail2ban htop
 [ $? -eq 0 ] && echo -e "${GREEN}Success install packages${NC}" || echo -e "${RED}Failed install packages${NC}"
 
 #Net configuration
-ufw allow ssh/tcp
-ufw limit ssh/tcp
+ufw default deny incoming
+ufw default allow outgoing
+
+ufw allow 22/tcp                      # SSH dostępny z dowolnego miejsca
+ufw allow 8006/tcp                    # Proxmox Web GUI
+ufw allow 5404/tcp                    # Proxmox Cluster (cman) TCP
+ufw allow 5404/udp                    # Proxmox Cluster (cman) UDP
+ufw allow 5405/tcp                    # Proxmox Cluster (cman) TCP
+ufw allow 5405/udp                    # Proxmox Cluster (cman) UDP
+ufw allow 2049/tcp                    # NFS (jeśli używasz)
+ufw allow 3260/tcp                    # iSCSI (jeśli używasz)
+ufw allow out 53/udp                  # Wychodzące zapytania DNS
+ufw allow out 53/tcp                  # Wychodzące zapytania DNS (opcjonalnie)
+ufw limit 22/tcp                      # Ograniczenie liczby prób logowania SSH
+ufw enable                            # Włączenie UFW
 ufw --force enable
 [ $? -eq 0 ] && echo -e "${GREEN}Success firewall configuration${NC}" || echo -e "${RED}Failed firewall configuration${NC}"
 
