@@ -29,7 +29,6 @@ ufw allow 3260/tcp                    # iSCSI (jeśli używasz)
 ufw allow out 53/udp                  # Wychodzące zapytania DNS
 ufw allow out 53/tcp                  # Wychodzące zapytania DNS (opcjonalnie)
 ufw limit 22/tcp                      # Ograniczenie liczby prób logowania SSH
-ufw enable                            # Włączenie UFW
 ufw --force enable
 [ $? -eq 0 ] && echo -e "${GREEN}Success firewall configuration${NC}" || echo -e "${RED}Failed firewall configuration${NC}"
 
