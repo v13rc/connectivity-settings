@@ -26,19 +26,6 @@ ufw limit ssh/tcp
 ufw --force enable
 [ $? -eq 0 ] && echo -e "${GREEN}Success firewall configuration${NC}" || echo -e "${RED}Failed firewall configuration${NC}"
 
-#Swap file 8G
-fallocate -l 8G /swapfile
-chmod 600 /swapfile
-mkswap /swapfile
-swapon /swapfile
-if [ $? -eq 0 ]; then
-echo -e "${GREEN}Success swap file creation${NC}"
-echo -e '/swapfile\tnone\tswap\tsw\t0\t0' >> /etc/fstab
-[ $? -eq 0 ] && echo -e "${GREEN}Success append /etc/fstab${NC}" || echo -e "${RED}Failed append /etc/fstab${NC}"
-else
-echo -e "${RED}Failed swap file creation${NC}"
-fi
-
 #Install fail2ban
 echo -e "[sshd]\nenabled = true\nport = 22\nfilter = sshd\nlogpath = /var/log/auth.log\nmaxretry = 3" > "/etc/fail2ban/jail.local"
 systemctl restart fail2ban
