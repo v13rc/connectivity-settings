@@ -23,8 +23,6 @@ ufw allow 5405/tcp
 ufw allow 5405/udp
 ufw allow 2049/tcp
 ufw allow 3260/tcp
-ufw allow out 53/udp
-ufw allow out 53/tcp
 ufw limit 22/tcp
 sudo ufw route allow in on vmbr1 out on vmbr0
 ufw --force enable
