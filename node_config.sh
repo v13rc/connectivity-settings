@@ -26,8 +26,7 @@ ufw allow 3260/tcp
 ufw allow out 53/udp
 ufw allow out 53/tcp
 ufw limit 22/tcp
-ufw allow 1194/udp
-ufw allow 1195/udp
+sudo ufw route allow in on vmbr1 out on vmbr0
 ufw --force enable
 [ $? -eq 0 ] && echo -e "${GREEN}Success firewall configuration${NC}" || echo -e "${RED}Failed firewall configuration${NC}"
 
