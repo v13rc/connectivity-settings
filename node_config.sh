@@ -17,12 +17,6 @@ apt install -y ufw fail2ban htop
 #Net configuration
 ufw allow 22/tcp
 ufw allow 8006/tcp
-ufw allow 5404/tcp
-ufw allow 5404/udp
-ufw allow 5405/tcp
-ufw allow 5405/udp
-ufw allow 2049/tcp
-ufw allow 3260/tcp
 ufw limit 22/tcp
 sudo ufw route allow in on vmbr1 out on vmbr0
 ufw --force enable
