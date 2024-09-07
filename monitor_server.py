@@ -1,8 +1,9 @@
 import requests
 from flask import Flask, render_template_string
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
+# Konfiguracja loggera
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -16,7 +17,15 @@ VALIDATORS_FILE = 'validators.txt'
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
 
+CACHE_TTL = timedelta(minutes=5)  # Okres przechowywania danych w cache
 app = Flask(__name__)
+
+# Prosty cache w pamięci
+cache = {
+    "validators": {"data": None, "last_fetched": None},
+    "epoch_info": {"data": None, "last_fetched": None},
+    "validator_blocks": {}
+}
 
 def load_validators_from_file():
     validators = []
@@ -35,6 +44,11 @@ def load_validators_from_file():
     return validators
 
 def fetch_validators():
+    now = datetime.now()
+    if cache["validators"]["data"] and cache["validators"]["last_fetched"] and (now - cache["validators"]["last_fetched"]) < CACHE_TTL:
+        logging.debug("Returning cached validators data.")
+        return cache["validators"]["data"]
+    
     validators = []
     page = 1
     limit = 100
@@ -46,11 +60,18 @@ def fetch_validators():
             if len(validators) >= data["pagination"]["total"]:
                 break
             page += 1
+        cache["validators"]["data"] = validators
+        cache["validators"]["last_fetched"] = now
     except Exception as e:
         logging.error(f"Error fetching validators from API: {e}")
     return validators
 
 def fetch_epoch_info():
+    now = datetime.now()
+    if cache["epoch_info"]["data"] and cache["epoch_info"]["last_fetched"] and (now - cache["epoch_info"]["last_fetched"]) < CACHE_TTL:
+        logging.debug("Returning cached epoch info.")
+        return cache["epoch_info"]["data"]
+    
     try:
         response = requests.get(STATUS_API_URL)
         data = response.json()
@@ -58,12 +79,22 @@ def fetch_epoch_info():
         first_block_height = data["epoch"]["firstBlockHeight"]
         epoch_start_time = datetime.fromtimestamp(data["epoch"]["startTime"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
         epoch_end_time = datetime.fromtimestamp(data["epoch"]["endTime"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
-        return epoch_number, first_block_height, epoch_start_time, epoch_end_time
+        epoch_info = (epoch_number, first_block_height, epoch_start_time, epoch_end_time)
+        cache["epoch_info"]["data"] = epoch_info
+        cache["epoch_info"]["last_fetched"] = now
+        return epoch_info
     except Exception as e:
         logging.error(f"Error fetching epoch info from API: {e}")
         return None, None, None, None
 
 def fetch_validator_blocks(protx, first_block_height):
+    now = datetime.now()
+    if protx in cache["validator_blocks"]:
+        cached_data = cache["validator_blocks"][protx]
+        if cached_data["last_fetched"] and (now - cached_data["last_fetched"]) < CACHE_TTL:
+            logging.debug(f"Returning cached block data for validator {protx}.")
+            return cached_data["data"]
+
     blocks = []
     page = 1
     limit = 100
@@ -72,19 +103,17 @@ def fetch_validator_blocks(protx, first_block_height):
             response = requests.get(f"https://platform-explorer.pshenmic.dev/validator/{protx}/blocks?limit={limit}&page={page}")
             data = response.json()
             
-            # Filtruj tylko bloki, które mają height >= first_block_height
             filtered_blocks = [block for block in data["resultSet"] if block["header"]["height"] >= first_block_height]
             blocks += filtered_blocks
 
-            # Przerwij pętlę, jeśli natrafiono na blok mniejszy niż first_block_height
             if len(filtered_blocks) < len(data["resultSet"]):
                 break
 
-            # Przerwij pętlę, jeśli osiągnięto koniec wyników
             if len(data["resultSet"]) < limit or len(blocks) >= data["pagination"]["total"]:
                 break
 
             page += 1
+        cache["validator_blocks"][protx] = {"data": len(blocks), "last_fetched": now}
     except Exception as e:
         logging.error(f"Error fetching blocks for validator {protx}: {e}")
     return len(blocks)
