@@ -3,13 +3,12 @@ from flask import Flask, render_template_string
 from datetime import datetime
 import logging
 
-# Ustawienia loggera
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("/home/monitor/dash_validators.log"),  # Zapisuj do pliku
-        logging.StreamHandler()  # Dodatkowo logi będą widoczne w `journalctl`
+        logging.FileHandler("/home/monitor/dash_validators.log"),
+        logging.StreamHandler()
     ]
 )
 
@@ -105,10 +104,17 @@ def display_validators():
 
     for validator in hard_coded_validators:
         protx = validator["protx"]
+        hidden_elements = ""
         if protx in fetched_dict:
             fetched_data = fetched_dict[protx]
             blocks_count = fetch_validator_blocks(protx, first_block_height)
             total_blocks_current_epoch += blocks_count
+
+            if fetched_data["proTxInfo"]["state"]["PoSePenalty"] != 0:
+                hidden_elements += f'<span style="display: none;">POSE_PENALTY_ALERT_{validator["name"]}</span>'
+            if fetched_data["proTxInfo"]["state"]["PoSeBanHeight"] != -1:
+                hidden_elements += f'<span style="display: none;">POSE_BAN_ALERT_{validator["name"]}</span>'
+
             row = {
                 "name": validator["name"],
                 "protx": protx,
@@ -117,7 +123,8 @@ def display_validators():
                 "pose_ban_height": fetched_data["proTxInfo"]["state"]["PoSeBanHeight"],
                 "last_proposed_block_timestamp": fetched_data["lastProposedBlockHeader"]["timestamp"] if fetched_data["lastProposedBlockHeader"] else "N/A",
                 "proposed_blocks_amount": fetched_data["proposedBlocksAmount"],
-                "blocks_count": blocks_count
+                "blocks_count": blocks_count,
+                "hidden_elements": hidden_elements
             }
             total_proposed_blocks += fetched_data["proposedBlocksAmount"]
         else:
@@ -129,7 +136,8 @@ def display_validators():
                 "pose_ban_height": "VALIDATOR NOT FOUND",
                 "last_proposed_block_timestamp": "VALIDATOR NOT FOUND",
                 "proposed_blocks_amount": "VALIDATOR NOT FOUND",
-                "blocks_count": "VALIDATOR NOT FOUND"
+                "blocks_count": "VALIDATOR NOT FOUND",
+                "hidden_elements": hidden_elements
             }
         rows.append(row)
 
@@ -165,7 +173,7 @@ def display_validators():
             </tr>
             {% for row in rows %}
             <tr>
-                <td>{{ row.name }}</td>
+                <td>{{ row.name }} {{ row.hidden_elements|safe }}</td>
                 <td>{{ row.protx }}</td>
                 <td class="{{ 'not-found' if row.pose_penalty == 'VALIDATOR NOT FOUND' else '' }}">{{ row.pose_penalty }}</td>
                 <td class="{{ 'not-found' if row.pose_revived_height == 'VALIDATOR NOT FOUND' else '' }}">{{ row.pose_revived_height }}</td>
