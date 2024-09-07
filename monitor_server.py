@@ -71,9 +71,19 @@ def fetch_validator_blocks(protx, first_block_height):
         while True:
             response = requests.get(f"https://platform-explorer.pshenmic.dev/validator/{protx}/blocks?limit={limit}&page={page}")
             data = response.json()
-            blocks += [block for block in data["resultSet"] if block["header"]["height"] >= first_block_height]
-            if len(blocks) >= data["pagination"]["total"]:
+            
+            # Filtruj tylko bloki, które mają height >= first_block_height
+            filtered_blocks = [block for block in data["resultSet"] if block["header"]["height"] >= first_block_height]
+            blocks += filtered_blocks
+
+            # Przerwij pętlę, jeśli natrafiono na blok mniejszy niż first_block_height
+            if len(filtered_blocks) < len(data["resultSet"]):
                 break
+
+            # Przerwij pętlę, jeśli osiągnięto koniec wyników
+            if len(data["resultSet"]) < limit or len(blocks) >= data["pagination"]["total"]:
+                break
+
             page += 1
     except Exception as e:
         logging.error(f"Error fetching blocks for validator {protx}: {e}")
