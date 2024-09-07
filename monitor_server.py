@@ -4,7 +4,14 @@ from datetime import datetime
 import logging
 
 # Ustawienia loggera
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("/home/monitor/dash_validators.log"),  # Zapisuj do pliku
+        logging.StreamHandler()  # Dodatkowo logi będą widoczne w `journalctl`
+    ]
+)
 
 VALIDATORS_FILE = 'validators.txt'
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
@@ -169,4 +176,13 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
-        <h2>Total
+        <h2>Total Proposed Blocks: {{ total_proposed_blocks }}</h2>
+        <h2>Total Blocks in Current Epoch: {{ total_blocks_current_epoch }}</h2>
+    </body>
+    </html>
+    """
+    
+    return render_template_string(html_template, rows=rows, total_proposed_blocks=total_proposed_blocks, total_blocks_current_epoch=total_blocks_current_epoch, current_time=current_time, epoch_number=epoch_number, epoch_start_time=epoch_start_time, epoch_end_time=epoch_end_time, first_block_height=first_block_height)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
