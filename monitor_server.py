@@ -1,6 +1,10 @@
 import requests
 from flask import Flask, render_template_string
 from datetime import datetime
+import logging
+
+# Ustawienia loggera
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 VALIDATORS_FILE = 'validators.txt'
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
@@ -10,57 +14,86 @@ app = Flask(__name__)
 
 def load_validators_from_file():
     validators = []
-    with open(VALIDATORS_FILE, 'r') as file:
-        for line in file:
-            name, protx = line.strip().split(',')
-            validators.append({"name": name, "protx": protx})
+    try:
+        with open(VALIDATORS_FILE, 'r') as file:
+            for line in file:
+                try:
+                    name, protx = line.strip().split(',')
+                    validators.append({"name": name, "protx": protx})
+                except ValueError as e:
+                    logging.error(f"Error parsing line in {VALIDATORS_FILE}: {line.strip()} - {e}")
+    except FileNotFoundError:
+        logging.error(f"File {VALIDATORS_FILE} not found.")
+    except Exception as e:
+        logging.error(f"Unexpected error while reading {VALIDATORS_FILE}: {e}")
     return validators
 
 def fetch_validators():
     validators = []
     page = 1
     limit = 100
-    while True:
-        response = requests.get(f"{API_URL}?limit={limit}&page={page}")
-        data = response.json()
-        validators.extend(data["resultSet"])
-        if len(validators) >= data["pagination"]["total"]:
-            break
-        page += 1
+    try:
+        while True:
+            response = requests.get(f"{API_URL}?limit={limit}&page={page}")
+            data = response.json()
+            validators.extend(data["resultSet"])
+            if len(validators) >= data["pagination"]["total"]:
+                break
+            page += 1
+    except Exception as e:
+        logging.error(f"Error fetching validators from API: {e}")
     return validators
 
 def fetch_epoch_info():
-    response = requests.get(STATUS_API_URL)
-    data = response.json()
-    epoch_number = data["epoch"]["number"]
-    first_block_height = data["epoch"]["firstBlockHeight"]
-    epoch_start_time = datetime.fromtimestamp(data["epoch"]["startTime"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
-    epoch_end_time = datetime.fromtimestamp(data["epoch"]["endTime"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
-    return epoch_number, first_block_height, epoch_start_time, epoch_end_time
+    try:
+        response = requests.get(STATUS_API_URL)
+        data = response.json()
+        epoch_number = data["epoch"]["number"]
+        first_block_height = data["epoch"]["firstBlockHeight"]
+        epoch_start_time = datetime.fromtimestamp(data["epoch"]["startTime"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
+        epoch_end_time = datetime.fromtimestamp(data["epoch"]["endTime"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
+        return epoch_number, first_block_height, epoch_start_time, epoch_end_time
+    except Exception as e:
+        logging.error(f"Error fetching epoch info from API: {e}")
+        return None, None, None, None
 
 def fetch_validator_blocks(protx, first_block_height):
     blocks = []
     page = 1
     limit = 100
-    while True:
-        response = requests.get(f"https://platform-explorer.pshenmic.dev/validator/{protx}/blocks?limit={limit}&page={page}")
-        data = response.json()
-        blocks += [block for block in data["resultSet"] if block["header"]["height"] >= first_block_height]
-        if len(blocks) >= data["pagination"]["total"]:
-            break
-        page += 1
+    try:
+        while True:
+            response = requests.get(f"https://platform-explorer.pshenmic.dev/validator/{protx}/blocks?limit={limit}&page={page}")
+            data = response.json()
+            blocks += [block for block in data["resultSet"] if block["header"]["height"] >= first_block_height]
+            if len(blocks) >= data["pagination"]["total"]:
+                break
+            page += 1
+    except Exception as e:
+        logging.error(f"Error fetching blocks for validator {protx}: {e}")
     return len(blocks)
 
 @app.route('/')
 def display_validators():
     hard_coded_validators = load_validators_from_file()
+    if not hard_coded_validators:
+        logging.error("No validators loaded from file.")
+        return "Error loading validators from file."
+
     fetched_validators = fetch_validators()
+    if not fetched_validators:
+        logging.error("No validators fetched from API.")
+        return "Error fetching validators from API."
+
     fetched_dict = {v["proTxHash"]: v for v in fetched_validators}
     total_proposed_blocks = 0
     total_blocks_current_epoch = 0
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     epoch_number, first_block_height, epoch_start_time, epoch_end_time = fetch_epoch_info()
+    if epoch_number is None:
+        return "Error fetching epoch information."
+
     rows = []
 
     for validator in hard_coded_validators:
@@ -136,10 +169,4 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
-        <h2>Total Proposed Blocks: {{ total_proposed_blocks }}</h2>
-        <h2>Total Blocks in Current Epoch: {{ total_blocks_current_epoch }}</h2>
-    </body>
-    </html>
-    """
-    
-    return render_template
+        <h2>Total
