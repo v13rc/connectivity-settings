@@ -3,7 +3,7 @@ from flask import Flask, render_template_string
 from datetime import datetime, timedelta
 import logging
 
-# Konfiguracja loggera
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -18,16 +18,18 @@ API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
 OVH_API_URL = "https://ca.api.ovh.com/v1/dedicated/server/datacenter/availabilities?planCode=24ska01"
 
-CACHE_TTL = timedelta(minutes=5)  # Okres przechowywania danych w cache
+CACHE_TTL = timedelta(minutes=5)  # Cache Time-To-Live
 app = Flask(__name__)
 
-# Prosty cache w pamięci
+# Simple in-memory cache
 cache = {
     "validators": {"data": None, "last_fetched": None},
     "epoch_info": {"data": None, "last_fetched": None},
     "validator_blocks": {},
     "ovh_availability": {"data": None, "last_fetched": None}
 }
+
+error_message = None  # Global variable to store error message
 
 def load_validators_from_file():
     validators = []
@@ -46,6 +48,7 @@ def load_validators_from_file():
     return validators
 
 def fetch_validators():
+    global error_message
     now = datetime.now()
     if cache["validators"]["data"] and cache["validators"]["last_fetched"] and (now - cache["validators"]["last_fetched"]) < CACHE_TTL:
         logging.debug("Returning cached validators data.")
@@ -64,11 +67,15 @@ def fetch_validators():
             page += 1
         cache["validators"]["data"] = validators
         cache["validators"]["last_fetched"] = now
+        error_message = None  # Reset error message after successful call
     except Exception as e:
         logging.error(f"Error fetching validators from API: {e}")
+        error_message = "Error fetching validators from API. Displaying cached data."
+        return cache["validators"]["data"]
     return validators
 
 def fetch_epoch_info():
+    global error_message
     now = datetime.now()
     if cache["epoch_info"]["data"] and cache["epoch_info"]["last_fetched"] and (now - cache["epoch_info"]["last_fetched"]) < CACHE_TTL:
         logging.debug("Returning cached epoch info.")
@@ -84,12 +91,15 @@ def fetch_epoch_info():
         epoch_info = (epoch_number, first_block_height, epoch_start_time, epoch_end_time)
         cache["epoch_info"]["data"] = epoch_info
         cache["epoch_info"]["last_fetched"] = now
+        error_message = None  # Reset error message after successful call
         return epoch_info
     except Exception as e:
         logging.error(f"Error fetching epoch info from API: {e}")
-        return None, None, None, None
+        error_message = "Error fetching epoch info from API. Displaying cached data."
+        return cache["epoch_info"]["data"]
 
 def fetch_validator_blocks(protx, first_block_height):
+    global error_message
     now = datetime.now()
     if protx in cache["validator_blocks"]:
         cached_data = cache["validator_blocks"][protx]
@@ -116,11 +126,15 @@ def fetch_validator_blocks(protx, first_block_height):
 
             page += 1
         cache["validator_blocks"][protx] = {"data": len(blocks), "last_fetched": now}
+        error_message = None  # Reset error message after successful call
     except Exception as e:
         logging.error(f"Error fetching blocks for validator {protx}: {e}")
+        error_message = f"Error fetching blocks for validator {protx}. Displaying cached data."
+        return cache["validator_blocks"][protx]["data"] if protx in cache["validator_blocks"] else 0
     return len(blocks)
 
 def check_server_availability():
+    global error_message
     now = datetime.now()
     if cache["ovh_availability"]["data"] and cache["ovh_availability"]["last_fetched"] and (now - cache["ovh_availability"]["last_fetched"]) < CACHE_TTL:
         logging.debug("Returning cached OVH server availability data.")
@@ -133,10 +147,12 @@ def check_server_availability():
         status_message = "Server KS-A is available" if available else "Server KS-A is not available"
         cache["ovh_availability"]["data"] = status_message
         cache["ovh_availability"]["last_fetched"] = now
+        error_message = None  # Reset error message after successful call
         return status_message
     except Exception as e:
         logging.error(f"Error checking server availability from OVH API: {e}")
-        return "Error checking server availability"
+        error_message = "Error checking server availability from OVH API. Displaying cached data."
+        return cache["ovh_availability"]["data"]
 
 @app.route('/')
 def display_validators():
@@ -248,11 +264,14 @@ def display_validators():
         <h2>Total Proposed Blocks: {{ total_proposed_blocks }}</h2>
         <h2>Total Blocks in Current Epoch: {{ total_blocks_current_epoch }}</h2>
         <h3>{{ server_availability }}</h3>
+        {% if error_message %}
+        <p style="color:red;">{{ error_message }}</p>
+        {% endif %}
     </body>
     </html>
     """
     
-    return render_template_string(html_template, rows=rows, total_proposed_blocks=total_proposed_blocks, total_blocks_current_epoch=total_blocks_current_epoch, current_time=current_time, epoch_number=epoch_number, epoch_start_time=epoch_start_time, epoch_end_time=epoch_end_time, first_block_height=first_block_height, server_availability=server_availability)
+    return render_template_string(html_template, rows=rows, total_proposed_blocks=total_proposed_blocks, total_blocks_current_epoch=total_blocks_current_epoch, current_time=current_time, epoch_number=epoch_number, epoch_start_time=epoch_start_time, epoch_end_time=epoch_end_time, first_block_height=first_block_height, server_availability=server_availability, error_message=error_message)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
