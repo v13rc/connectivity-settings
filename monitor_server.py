@@ -16,6 +16,7 @@ logging.basicConfig(
 VALIDATORS_FILE = 'validators.txt'
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
+OVH_API_URL = "https://ca.api.ovh.com/v1/dedicated/server/datacenter/availabilities?planCode=24ska01"
 
 CACHE_TTL = timedelta(minutes=5)  # Okres przechowywania danych w cache
 app = Flask(__name__)
@@ -24,7 +25,8 @@ app = Flask(__name__)
 cache = {
     "validators": {"data": None, "last_fetched": None},
     "epoch_info": {"data": None, "last_fetched": None},
-    "validator_blocks": {}
+    "validator_blocks": {},
+    "ovh_availability": {"data": None, "last_fetched": None}
 }
 
 def load_validators_from_file():
@@ -118,6 +120,24 @@ def fetch_validator_blocks(protx, first_block_height):
         logging.error(f"Error fetching blocks for validator {protx}: {e}")
     return len(blocks)
 
+def check_server_availability():
+    now = datetime.now()
+    if cache["ovh_availability"]["data"] and cache["ovh_availability"]["last_fetched"] and (now - cache["ovh_availability"]["last_fetched"]) < CACHE_TTL:
+        logging.debug("Returning cached OVH server availability data.")
+        return cache["ovh_availability"]["data"]
+
+    try:
+        response = requests.get(OVH_API_URL, headers={"accept": "application/json"})
+        data = response.json()
+        available = any(dc["availability"] != "unavailable" for dc in data[0]["datacenters"])
+        status_message = "Server KS-A is available" if available else "Server KS-A is not available"
+        cache["ovh_availability"]["data"] = status_message
+        cache["ovh_availability"]["last_fetched"] = now
+        return status_message
+    except Exception as e:
+        logging.error(f"Error checking server availability from OVH API: {e}")
+        return "Error checking server availability"
+
 @app.route('/')
 def display_validators():
     hard_coded_validators = load_validators_from_file()
@@ -180,6 +200,8 @@ def display_validators():
             }
         rows.append(row)
 
+    server_availability = check_server_availability()
+
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -225,11 +247,12 @@ def display_validators():
         </table>
         <h2>Total Proposed Blocks: {{ total_proposed_blocks }}</h2>
         <h2>Total Blocks in Current Epoch: {{ total_blocks_current_epoch }}</h2>
+        <h3>{{ server_availability }}</h3>
     </body>
     </html>
     """
     
-    return render_template_string(html_template, rows=rows, total_proposed_blocks=total_proposed_blocks, total_blocks_current_epoch=total_blocks_current_epoch, current_time=current_time, epoch_number=epoch_number, epoch_start_time=epoch_start_time, epoch_end_time=epoch_end_time, first_block_height=first_block_height)
+    return render_template_string(html_template, rows=rows, total_proposed_blocks=total_proposed_blocks, total_blocks_current_epoch=total_blocks_current_epoch, current_time=current_time, epoch_number=epoch_number, epoch_start_time=epoch_start_time, epoch_end_time=epoch_end_time, first_block_height=first_block_height, server_availability=server_availability)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
