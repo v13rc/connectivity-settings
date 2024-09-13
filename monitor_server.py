@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 import logging
 import json
 
-# Logger configuration - logging only to console
+# Logger configuration - logging only critical errors
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.CRITICAL,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler()  # Log only to console
@@ -42,17 +42,14 @@ def save_to_file(data, filename):
         with open(filename, 'w') as f:
             json.dump(data, f)
     except Exception as e:
-        logging.error(f"Error saving data to {filename}: {e}")
+        logging.critical(f"Error saving data to {filename}: {e}")
 
 def load_from_file(filename):
     try:
         with open(filename, 'r') as f:
             return json.load(f)
-    except FileNotFoundError:
-        logging.error(f"File {filename} not found.")
-        return {}
     except Exception as e:
-        logging.error(f"Error loading data from {filename}: {e}")
+        logging.critical(f"Error loading data from {filename}: {e}")
         return {}
 
 def load_validators_from_file():
@@ -64,18 +61,15 @@ def load_validators_from_file():
                     name, protx = line.strip().split(',')
                     validators.append({"name": name, "protx": protx})
                 except ValueError as e:
-                    logging.error(f"Error parsing line in {VALIDATORS_FILE}: {line.strip()} - {e}")
-    except FileNotFoundError:
-        logging.error(f"File {VALIDATORS_FILE} not found.")
+                    logging.critical(f"Error parsing line in {VALIDATORS_FILE}: {line.strip()} - {e}")
     except Exception as e:
-        logging.error(f"Unexpected error while reading {VALIDATORS_FILE}: {e}")
+        logging.critical(f"Unexpected error while reading {VALIDATORS_FILE}: {e}")
     return validators
 
 def fetch_validators():
     global error_message
     now = datetime.now()
     if cache["validators"]["data"] and cache["validators"]["last_fetched"] and (now - cache["validators"]["last_fetched"]) < CACHE_TTL:
-        logging.debug("Returning cached validators data.")
         return cache["validators"]["data"]
     
     validators = []
@@ -93,7 +87,7 @@ def fetch_validators():
         cache["validators"]["last_fetched"] = now
         error_message = None  # Reset error message after successful call
     except Exception as e:
-        logging.error(f"Error fetching validators from API: {e}")
+        logging.critical(f"Error fetching validators from API: {e}")
         error_message = "Error fetching validators from API. Displaying cached data."
         return cache["validators"]["data"]
     return validators
@@ -102,7 +96,6 @@ def fetch_epoch_info():
     global error_message
     now = datetime.now()
     if cache["epoch_info"]["data"] and cache["epoch_info"]["last_fetched"] and (now - cache["epoch_info"]["last_fetched"]) < CACHE_TTL:
-        logging.debug("Returning cached epoch info.")
         return cache["epoch_info"]["data"]
     
     try:
@@ -118,7 +111,7 @@ def fetch_epoch_info():
         error_message = None  # Reset error message after successful call
         return epoch_info
     except Exception as e:
-        logging.error(f"Error fetching epoch info from API: {e}")
+        logging.critical(f"Error fetching epoch info from API: {e}")
         error_message = "Error fetching epoch info from API. Displaying cached data."
         return cache["epoch_info"]["data"]
 
@@ -128,7 +121,6 @@ def fetch_validator_blocks(protx, first_block_height):
     if protx in cache["validator_blocks"]:
         cached_data = cache["validator_blocks"][protx]
         if cached_data["last_fetched"] and (now - cached_data["last_fetched"]) < CACHE_TTL:
-            logging.debug(f"Returning cached block data for validator {protx}.")
             return cached_data["data"]
 
     blocks = []
@@ -152,7 +144,7 @@ def fetch_validator_blocks(protx, first_block_height):
         cache["validator_blocks"][protx] = {"data": len(blocks), "last_fetched": now}
         error_message = None  # Reset error message after successful call
     except Exception as e:
-        logging.error(f"Error fetching blocks for validator {protx}: {e}")
+        logging.critical(f"Error fetching blocks for validator {protx}: {e}")
         error_message = f"Error fetching blocks for validator {protx}. Displaying cached data."
         return cache["validator_blocks"][protx]["data"] if protx in cache["validator_blocks"] else 0
     return len(blocks)
@@ -161,7 +153,6 @@ def check_server_availability():
     global error_message
     now = datetime.now()
     if cache["ovh_availability"]["data"] and cache["ovh_availability"]["last_fetched"] and (now - cache["ovh_availability"]["last_fetched"]) < CACHE_TTL:
-        logging.debug("Returning cached OVH server availability data.")
         return cache["ovh_availability"]["data"]
 
     try:
@@ -174,7 +165,7 @@ def check_server_availability():
         error_message = None  # Reset error message after successful call
         return status_message
     except Exception as e:
-        logging.error(f"Error checking server availability from OVH API: {e}")
+        logging.critical(f"Error checking server availability from OVH API: {e}")
         error_message = "Error checking server availability from OVH API. Displaying cached data."
         return cache["ovh_availability"]["data"]
 
@@ -208,12 +199,10 @@ def display_validators():
 
     hard_coded_validators = load_validators_from_file()
     if not hard_coded_validators:
-        logging.error("No validators loaded from file.")
         return "Error loading validators from file."
 
     fetched_validators = fetch_validators()
     if not fetched_validators:
-        logging.error("No validators fetched from API.")
         return "Error fetching validators from API."
 
     fetched_dict = {v["proTxHash"]: v for v in fetched_validators}
