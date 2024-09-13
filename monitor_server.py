@@ -4,13 +4,12 @@ from datetime import datetime, timedelta
 import logging
 import json
 
-# Logger configuration
+# Logger configuration - logging only to console
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("/home/monitor/dash_validators.log"),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Log only to console
     ]
 )
 
