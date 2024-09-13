@@ -2,28 +2,30 @@ from flask import Flask, render_template_string, request, jsonify
 from datetime import datetime, timedelta
 import json
 import logging
+import os
 
-# Logger configuration
+# Konfiguracja loggera do logowania na standardowe wyjście
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("/home/monitor/dash_validators.log"),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Logowanie tylko na standardowe wyjście
     ]
 )
 
+# Ścieżki do plików z danymi
 VALIDATORS_FILE = 'validators.txt'
-HEARTBEAT_FILE = 'heartbeat.txt'
-QUORUM_INFO_FILE = 'quorum_info.json'
+HEARTBEAT_FILE = '/home/monitor/heartbeat.json'  # Upewnij się, że ścieżka jest dostępna dla zapisu
+QUORUM_INFO_FILE = '/home/monitor/quorum_info.json'
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
 OVH_API_URL = "https://ca.api.ovh.com/v1/dedicated/server/datacenter/availabilities?planCode=24ska01"
 
-CACHE_TTL = timedelta(minutes=5)  # Cache Time-To-Live
+# TTL dla cache
+CACHE_TTL = timedelta(minutes=5)
 app = Flask(__name__)
 
-# Simple in-memory cache
+# Inicjalizacja cache
 cache = {
     "validators": {"data": None, "last_fetched": None},
     "epoch_info": {"data": None, "last_fetched": None},
@@ -31,9 +33,11 @@ cache = {
     "ovh_availability": {"data": None, "last_fetched": None}
 }
 
-error_message = None  # Global variable to store error message
+# Globalna zmienna do przechowywania komunikatów o błędach
+error_message = None
 
 def load_validators_from_file():
+    # Funkcja wczytująca validatorów z pliku
     validators = []
     try:
         with open(VALIDATORS_FILE, 'r') as file:
@@ -158,13 +162,26 @@ def check_server_availability():
 
 
 def save_heartbeat_data(server_name, last_reboot_timestamp):
+    # Zapisuje dane heartbeat dla każdego serwera osobno
     try:
+        data = {}
+        try:
+            if os.path.exists(HEARTBEAT_FILE):
+                with open(HEARTBEAT_FILE, 'r') as f:
+                    data = json.load(f)
+        except json.JSONDecodeError:
+            data = {}
+
+        # Aktualizuje lub dodaje nowe dane dla serwera
+        data[server_name] = {"lastRebootTimestamp": last_reboot_timestamp}
+
         with open(HEARTBEAT_FILE, 'w') as f:
-            f.write(f"{server_name},{last_reboot_timestamp}\n")
+            json.dump(data, f)
     except Exception as e:
         logging.error(f"Error saving heartbeat data: {e}")
 
 def save_quorum_info(data):
+    # Zapisuje dane quorum do pliku JSON
     try:
         with open(QUORUM_INFO_FILE, 'w') as f:
             json.dump(data, f)
@@ -172,16 +189,18 @@ def save_quorum_info(data):
         logging.error(f"Error saving quorum info: {e}")
 
 def load_heartbeat_data():
+    # Wczytuje dane heartbeat z pliku JSON
     try:
         with open(HEARTBEAT_FILE, 'r') as f:
-            return [line.strip().split(',') for line in f.readlines()]
+            return json.load(f)
     except FileNotFoundError:
-        return []
+        return {}
     except Exception as e:
         logging.error(f"Error loading heartbeat data: {e}")
-        return []
+        return {}
 
 def load_quorum_info():
+    # Wczytuje dane quorum z pliku JSON
     try:
         with open(QUORUM_INFO_FILE, 'r') as f:
             return json.load(f)
@@ -193,6 +212,7 @@ def load_quorum_info():
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
+    # Obsługa zapytań POST dla heartbeat
     data = request.json
     server_name = data.get('serverName')
     last_reboot_timestamp = data.get('lastRebootTimestamp')
@@ -204,6 +224,7 @@ def heartbeat():
 
 @app.route('/quorumInfo', methods=['POST'])
 def quorum_info():
+    # Obsługa zapytań POST dla quorumInfo
     data = request.json
     if data:
         save_quorum_info(data)
@@ -213,6 +234,7 @@ def quorum_info():
 
 @app.route('/')
 def display_validators():
+    # Funkcja wyświetlająca stronę główną z informacjami
     hard_coded_validators = load_validators_from_file()
     if not hard_coded_validators:
         logging.error("No validators loaded from file.")
@@ -223,7 +245,7 @@ def display_validators():
         logging.error("No validators fetched from API.")
         return "Error fetching validators from API."
 
-    # Your existing function implementation...
+    # Twoja istniejąca implementacja...
 
     heartbeat_data = load_heartbeat_data()
     quorum_info_data = load_quorum_info()
@@ -242,7 +264,7 @@ def display_validators():
     </head>
     <body>
         <h1>Dash Validators Information</h1>
-        <!-- Existing HTML Content... -->
+        <!-- Istniejąca zawartość HTML... -->
 
         <h2>Server Heartbeat Data</h2>
         <table>
@@ -250,10 +272,10 @@ def display_validators():
                 <th>Server Name</th>
                 <th>Last Reboot Timestamp</th>
             </tr>
-            {% for server, timestamp in heartbeat_data %}
+            {% for server, info in heartbeat_data.items() %}
             <tr>
                 <td>{{ server }}</td>
-                <td>{{ timestamp }}</td>
+                <td>{{ info.lastRebootTimestamp }}</td>
             </tr>
             {% endfor %}
         </table>
