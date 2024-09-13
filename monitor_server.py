@@ -1,31 +1,31 @@
-from flask import Flask, render_template_string, request, jsonify
+import requests
+from flask import Flask, request, render_template_string, jsonify
 from datetime import datetime, timedelta
-import json
 import logging
-import os
+import json
 
-# Konfiguracja loggera do logowania na standardowe wyjście
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler()  # Logowanie tylko na standardowe wyjście
+        logging.FileHandler("/home/monitor/dash_validators.log"),
+        logging.StreamHandler()
     ]
 )
 
-# Ścieżki do plików z danymi
 VALIDATORS_FILE = 'validators.txt'
-HEARTBEAT_FILE = '/home/monitor/heartbeat.json'  # Upewnij się, że ścieżka jest dostępna dla zapisu
-QUORUM_INFO_FILE = '/home/monitor/quorum_info.json'
+HEARTBEAT_FILE = 'heartbeat_data.json'
+QUORUMINFO_FILE = 'quoruminfo_data.json'
+
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
 OVH_API_URL = "https://ca.api.ovh.com/v1/dedicated/server/datacenter/availabilities?planCode=24ska01"
 
-# TTL dla cache
-CACHE_TTL = timedelta(minutes=5)
+CACHE_TTL = timedelta(minutes=5)  # Cache Time-To-Live
 app = Flask(__name__)
 
-# Inicjalizacja cache
+# Simple in-memory cache
 cache = {
     "validators": {"data": None, "last_fetched": None},
     "epoch_info": {"data": None, "last_fetched": None},
@@ -33,11 +33,30 @@ cache = {
     "ovh_availability": {"data": None, "last_fetched": None}
 }
 
-# Globalna zmienna do przechowywania komunikatów o błędach
-error_message = None
+heartbeat_data = {}
+quorum_info_data = {}
+
+error_message = None  # Global variable to store error message
+
+def save_to_file(data, filename):
+    try:
+        with open(filename, 'w') as f:
+            json.dump(data, f)
+    except Exception as e:
+        logging.error(f"Error saving data to {filename}: {e}")
+
+def load_from_file(filename):
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logging.error(f"File {filename} not found.")
+        return {}
+    except Exception as e:
+        logging.error(f"Error loading data from {filename}: {e}")
+        return {}
 
 def load_validators_from_file():
-    # Funkcja wczytująca validatorów z pliku
     validators = []
     try:
         with open(VALIDATORS_FILE, 'r') as file:
@@ -160,81 +179,34 @@ def check_server_availability():
         error_message = "Error checking server availability from OVH API. Displaying cached data."
         return cache["ovh_availability"]["data"]
 
-
-def save_heartbeat_data(server_name, last_reboot_timestamp):
-    # Zapisuje dane heartbeat dla każdego serwera osobno
-    try:
-        data = {}
-        try:
-            if os.path.exists(HEARTBEAT_FILE):
-                with open(HEARTBEAT_FILE, 'r') as f:
-                    data = json.load(f)
-        except json.JSONDecodeError:
-            data = {}
-
-        # Aktualizuje lub dodaje nowe dane dla serwera
-        data[server_name] = {"lastRebootTimestamp": last_reboot_timestamp}
-
-        with open(HEARTBEAT_FILE, 'w') as f:
-            json.dump(data, f)
-    except Exception as e:
-        logging.error(f"Error saving heartbeat data: {e}")
-
-def save_quorum_info(data):
-    # Zapisuje dane quorum do pliku JSON
-    try:
-        with open(QUORUM_INFO_FILE, 'w') as f:
-            json.dump(data, f)
-    except Exception as e:
-        logging.error(f"Error saving quorum info: {e}")
-
-def load_heartbeat_data():
-    # Wczytuje dane heartbeat z pliku JSON
-    try:
-        with open(HEARTBEAT_FILE, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except Exception as e:
-        logging.error(f"Error loading heartbeat data: {e}")
-        return {}
-
-def load_quorum_info():
-    # Wczytuje dane quorum z pliku JSON
-    try:
-        with open(QUORUM_INFO_FILE, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except Exception as e:
-        logging.error(f"Error loading quorum info: {e}")
-        return {}
-
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
-    # Obsługa zapytań POST dla heartbeat
-    data = request.json
+    global heartbeat_data
+    data = request.get_json()
     server_name = data.get('serverName')
     last_reboot_timestamp = data.get('lastRebootTimestamp')
     if server_name and last_reboot_timestamp:
-        save_heartbeat_data(server_name, last_reboot_timestamp)
-        return jsonify({"status": "success", "message": "Heartbeat data saved successfully"}), 200
+        heartbeat_data[server_name] = datetime.fromtimestamp(last_reboot_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        save_to_file(heartbeat_data, HEARTBEAT_FILE)
+        return jsonify({"message": "Heartbeat data saved successfully."}), 200
     else:
-        return jsonify({"status": "error", "message": "Invalid data provided"}), 400
+        return jsonify({"error": "Invalid data format."}), 400
 
 @app.route('/quorumInfo', methods=['POST'])
 def quorum_info():
-    # Obsługa zapytań POST dla quorumInfo
-    data = request.json
-    if data:
-        save_quorum_info(data)
-        return jsonify({"status": "success", "message": "Quorum info saved successfully"}), 200
-    else:
-        return jsonify({"status": "error", "message": "Invalid data provided"}), 400
+    global quorum_info_data
+    data = request.get_json()
+    quorum_info_data = data
+    save_to_file(quorum_info_data, QUORUMINFO_FILE)
+    return jsonify({"message": "Quorum info data saved successfully."}), 200
 
 @app.route('/')
 def display_validators():
-    # Funkcja wyświetlająca stronę główną z informacjami
+    # Load persisted heartbeat and quorum data from file
+    global heartbeat_data, quorum_info_data
+    heartbeat_data = load_from_file(HEARTBEAT_FILE)
+    quorum_info_data = load_from_file(QUORUMINFO_FILE)
+
     hard_coded_validators = load_validators_from_file()
     if not hard_coded_validators:
         logging.error("No validators loaded from file.")
@@ -245,10 +217,57 @@ def display_validators():
         logging.error("No validators fetched from API.")
         return "Error fetching validators from API."
 
-    # Twoja istniejąca implementacja...
+    fetched_dict = {v["proTxHash"]: v for v in fetched_validators}
+    total_proposed_blocks = 0
+    total_blocks_current_epoch = 0
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    heartbeat_data = load_heartbeat_data()
-    quorum_info_data = load_quorum_info()
+    epoch_number, first_block_height, epoch_start_time, epoch_end_time = fetch_epoch_info()
+    if epoch_number is None:
+        return "Error fetching epoch information."
+
+    rows = []
+
+    for validator in hard_coded_validators:
+        protx = validator["protx"]
+        hidden_elements = ""
+        if protx in fetched_dict:
+            fetched_data = fetched_dict[protx]
+            blocks_count = fetch_validator_blocks(protx, first_block_height)
+            total_blocks_current_epoch += blocks_count
+
+            if fetched_data["proTxInfo"]["state"]["PoSePenalty"] != 0:
+                hidden_elements += f'<span style="display: none;">POSE_PENALTY_ALERT_{validator["name"]}</span>'
+            if fetched_data["proTxInfo"]["state"]["PoSeBanHeight"] != -1:
+                hidden_elements += f'<span style="display: none;">POSE_BAN_ALERT_{validator["name"]}</span>'
+
+            row = {
+                "name": validator["name"],
+                "protx": protx,
+                "pose_penalty": fetched_data["proTxInfo"]["state"]["PoSePenalty"],
+                "pose_revived_height": fetched_data["proTxInfo"]["state"]["PoSeRevivedHeight"],
+                "pose_ban_height": fetched_data["proTxInfo"]["state"]["PoSeBanHeight"],
+                "last_proposed_block_timestamp": fetched_data["lastProposedBlockHeader"]["timestamp"] if fetched_data["lastProposedBlockHeader"] else "N/A",
+                "proposed_blocks_amount": fetched_data["proposedBlocksAmount"],
+                "blocks_count": blocks_count,
+                "hidden_elements": hidden_elements
+            }
+            total_proposed_blocks += fetched_data["proposedBlocksAmount"]
+        else:
+            row = {
+                "name": validator["name"],
+                "protx": protx,
+                "pose_penalty": "VALIDATOR NOT FOUND",
+                "pose_revived_height": "VALIDATOR NOT FOUND",
+                "pose_ban_height": "VALIDATOR NOT FOUND",
+                "last_proposed_block_timestamp": "VALIDATOR NOT FOUND",
+                "proposed_blocks_amount": "VALIDATOR NOT FOUND",
+                "blocks_count": "VALIDATOR NOT FOUND",
+                "hidden_elements": hidden_elements
+            }
+        rows.append(row)
+
+    server_availability = check_server_availability()
 
     html_template = """
     <!DOCTYPE html>
@@ -264,24 +283,61 @@ def display_validators():
     </head>
     <body>
         <h1>Dash Validators Information</h1>
-        <!-- Istniejąca zawartość HTML... -->
-
-        <h2>Server Heartbeat Data</h2>
+        <p>Data fetched on: {{ current_time }}</p>
+        <p>Current Epoch: {{ epoch_number }}</p>
+        <p>Epoch Start Time: {{ epoch_start_time }}</p>
+        <p>Epoch End Time: {{ epoch_end_time }}</p>
+        <p>First Block Height: {{ first_block_height }}</p>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>ProTx</th>
+                <th>PoSe Penalty</th>
+                <th>PoSe Revived Height</th>
+                <th>PoSe Ban Height</th>
+                <th>Last Proposed Block Timestamp</th>
+                <th>Proposed Blocks Amount</th>
+                <th>Blocks in Current Epoch</th>
+            </tr>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.name }} {{ row.hidden_elements|safe }}</td>
+                <td>{{ row.protx }}</td>
+                <td class="{{ 'not-found' if row.pose_penalty == 'VALIDATOR NOT FOUND' else '' }}">{{ row.pose_penalty }}</td>
+                <td class="{{ 'not-found' if row.pose_revived_height == 'VALIDATOR NOT FOUND' else '' }}">{{ row.pose_revived_height }}</td>
+                <td class="{{ 'not-found' if row.pose_ban_height == 'VALIDATOR NOT FOUND' else '' }}">{{ row.pose_ban_height }}</td>
+                <td class="{{ 'not-found' if row.last_proposed_block_timestamp == 'VALIDATOR NOT FOUND' else '' }}">{{ row.last_proposed_block_timestamp }}</td>
+                <td class="{{ 'not-found' if row.proposed_blocks_amount == 'VALIDATOR NOT FOUND' else '' }}">{{ row.proposed_blocks_amount }}</td>
+                <td class="{{ 'not-found' if row.blocks_count == 'VALIDATOR NOT FOUND' else '' }}">{{ row.blocks_count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <h2>Total Proposed Blocks: {{ total_proposed_blocks }}</h2>
+        <h2>Total Blocks in Current Epoch: {{ total_blocks_current_epoch }}</h2>
+        <h3>{{ server_availability }}</h3>
+        {% if error_message %}
+        <p style="color:red;">{{ error_message }}</p>
+        {% endif %}
+        
+        <!-- Display Heartbeat Data -->
+        <h2>Heartbeat Data</h2>
         <table>
             <tr>
                 <th>Server Name</th>
-                <th>Last Reboot Timestamp</th>
+                <th>Last Reboot Time</th>
             </tr>
-            {% for server, info in heartbeat_data.items() %}
+            {% for server, reboot_time in heartbeat_data.items() %}
             <tr>
                 <td>{{ server }}</td>
-                <td>{{ info.lastRebootTimestamp }}</td>
+                <td>{{ reboot_time }}</td>
             </tr>
             {% endfor %}
         </table>
 
-        <h2>Quorum Info</h2>
+        <!-- Display Quorum Info Data -->
+        <h2>Quorum Information</h2>
         <pre>{{ quorum_info_data | tojson(indent=2) }}</pre>
+        
     </body>
     </html>
     """
