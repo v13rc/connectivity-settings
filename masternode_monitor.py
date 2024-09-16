@@ -121,7 +121,19 @@ def main(report_url, verbose=False):
     uptime = run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime", verbose)
     uptime_in_seconds = run_command("awk '{print $1}' /proc/uptime", verbose)
 
-    # Step 6: Send report
+    # Step 6: Check if proTxHash is in active validators
+    active_validators = run_command("curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'", verbose)
+    if not active_validators or len(active_validators.splitlines()) < 67:
+        print("Insufficient active validators or error fetching them.")
+        in_quorum = None
+    else:
+        if pro_tx_hash.upper() in active_validators.upper().splitlines():
+            print("proTxHash is in active validators list.")
+            in_quorum = True
+        else:
+            in_quorum = False
+
+    # Step 7: Prepare and send the report
     payload = {
         "serverName": server_name,
         "uptime": uptime,
@@ -142,24 +154,14 @@ def main(report_url, verbose=False):
         "epochNumber": epoch_number,
         "epochFirstBlockHeight": epoch_first_block_height,
         "epochStartTime": epoch_start_time,
-        "epochEndTime": epoch_end_time
+        "epochEndTime": epoch_end_time,
+        "inQuorum": in_quorum
     }
 
     post_json_data(report_url, payload, verbose)
 
-    # Step 7: Fetch active validators
-    active_validators = run_command("curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'", verbose)
-    if not active_validators or len(active_validators.splitlines()) < 67:
-        print("Insufficient active validators or error fetching them.")
-        return
-
-    # Step 8: Check if proTxHash is in active validators
-    if pro_tx_hash.upper() in active_validators.upper().splitlines():
-        print("proTxHash is in active validators list.")
-        return
-
-    # Step 9: Restart server if uptime is greater than 24 hours
-    if float(uptime_in_seconds) > 86400:
+    # Step 8: Restart server if uptime is greater than 24 hours and not in quorum
+    if in_quorum is False and float(uptime_in_seconds) > 86400:
         print("Restarting server...")
         run_command("sudo reboot", verbose)
 
