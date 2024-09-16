@@ -190,7 +190,7 @@ def quorum_info():
     save_to_file(quorum_info_data, QUORUMINFO_FILE)
     return jsonify({"message": "Quorum info data saved successfully."}), 200
 
-@app.route('/')
+@app.route('/old')
 def display_validators():
     # Load persisted heartbeat and quorum data from file
     global heartbeat_data, quorum_info_data
