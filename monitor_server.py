@@ -88,9 +88,12 @@ def load_from_file(filename):
     try:
         with open(filename, 'r') as f:
             return json.load(f)
+    except json.JSONDecodeError as e:
+        logging.critical(f"JSON decode error for file {filename}: {e}")
+        return {}  # Jeśli JSON jest nieprawidłowy, zwróć pusty słownik
     except Exception as e:
         logging.critical(f"Error loading data from {filename}: {e}")
-        return {}
+        return {}  # Jeśli inny błąd, zwróć pusty słownik
 
 def fetch_validators():
     global error_message
@@ -201,50 +204,8 @@ def heartbeat():
     data = request.get_json()
 
     server_name = data.get('serverName')
-    uptime = data.get('uptime')
-    uptime_in_seconds = data.get('uptimeInSeconds')
-    pro_tx_hash = data.get('proTxHash')
-    core_block_height = data.get('coreBlockHeight')
-    platform_block_height = data.get('platformBlockHeight')
-    p2p_port_state = data.get('p2pPortState')
-    http_port_state = data.get('httpPortState')
-    po_se_penalty = data.get('poSePenalty')
-    po_se_revived_height = data.get('poSeRevivedHeight')
-    po_se_ban_height = data.get('poSeBanHeight')
-    last_paid_height = data.get('lastPaidHeight')
-    last_paid_time = data.get('lastPaidTime')
-    payment_queue_position = data.get('paymentQueuePosition')
-    next_payment_time = data.get('nextPaymentTime')
-    proposed_block_in_current_epoch = data.get('proposedBlockInCurrentEpoch')
-    epoch_number = data.get('epochNumber')
-    epoch_first_block_height = data.get('epochFirstBlockHeight')
-    epoch_start_time = data.get('epochStartTime')
-    epoch_end_time = data.get('epochEndTime')
-    in_quorum = data.get('inQuorum')
-
     if server_name:
-        heartbeat_data[server_name] = {
-            "uptime": uptime,
-            "uptime_in_seconds": uptime_in_seconds,
-            "pro_tx_hash": pro_tx_hash,
-            "core_block_height": core_block_height,
-            "platform_block_height": platform_block_height,
-            "p2p_port_state": p2p_port_state,
-            "http_port_state": http_port_state,
-            "po_se_penalty": po_se_penalty,
-            "po_se_revived_height": po_se_revived_height,
-            "po_se_ban_height": po_se_ban_height,
-            "last_paid_height": last_paid_height,
-            "last_paid_time": last_paid_time,
-            "payment_queue_position": payment_queue_position,
-            "next_payment_time": next_payment_time,
-            "proposed_block_in_current_epoch": proposed_block_in_current_epoch,
-            "epoch_number": epoch_number,
-            "epoch_first_block_height": epoch_first_block_height,
-            "epoch_start_time": epoch_start_time,
-            "epoch_end_time": epoch_end_time,
-            "in_quorum": in_quorum
-        }
+        heartbeat_data[server_name] = data
         # Save data to file and get the result
         result = save_to_file(heartbeat_data, HEARTBEAT_FILE)
 
