@@ -14,12 +14,9 @@ logging.basicConfig(
     ]
 )
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-VALIDATORS_FILE = os.path.join(BASE_DIR, 'validators.txt')
-HEARTBEAT_FILE = os.path.join(BASE_DIR, 'app_data/heartbeat_data.json')
-QUORUMINFO_FILE = os.path.join(BASE_DIR, 'app_data/heartbeat_data.json')
-
+VALIDATORS_FILE = 'validators.txt'
+HEARTBEAT_FILE = 'app_data/heartbeat_data.json'
+QUORUMINFO_FILE = 'app_data/quoruminfo_data.json'
 
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
