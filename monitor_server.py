@@ -1,9 +1,9 @@
+import os
 import requests
 from flask import Flask, request, render_template_string, jsonify
 from datetime import datetime, timedelta 
 import logging
 import json
-import os
 
 # Logger configuration - logging only critical errors
 logging.basicConfig(
@@ -14,9 +14,12 @@ logging.basicConfig(
     ]
 )
 
-VALIDATORS_FILE = 'validators.txt'
-HEARTBEAT_FILE = 'heartbeat_data.json'
-QUORUMINFO_FILE = 'quoruminfo_data.json'
+# Określ ścieżkę katalogu, w którym mają być zapisywane pliki
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+VALIDATORS_FILE = os.path.join(BASE_DIR, 'validators.txt')
+HEARTBEAT_FILE = os.path.join(BASE_DIR, 'heartbeat_data.json')
+QUORUMINFO_FILE = os.path.join(BASE_DIR, 'quoruminfo_data.json')
 
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
@@ -38,22 +41,41 @@ quorum_info_data = {}
 
 error_message = None  # Global variable to store error message
 
+def ensure_directory_exists(path):
+    """Ensure the directory for the given path exists."""
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        try:
+            os.makedirs(directory, exist_ok=True)
+        except Exception as e:
+            logging.critical(f"Could not create directory {directory}: {e}")
+            return False
+    return True
+
 def save_to_file(data, filename):
+    """Save data to a file and return JSON with the result status."""
+    if not ensure_directory_exists(filename):
+        error_msg = f"Directory does not exist and could not be created for {filename}."
+        logging.critical(error_msg)
+        return {"status": "error", "message": error_msg}
+
     try:
-        temp_filename = filename + ".tmp"  # Create temporary file name
+        temp_filename = filename + ".tmp"  # Tworzenie nazwy pliku tymczasowego
         
-        # Write data to a temporary file
+        # Zapis do pliku tymczasowego
         with open(temp_filename, 'w') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         
-        # Replace the original file with the temporary file
+        # Zamiana pliku tymczasowego na oryginalny plik
         os.replace(temp_filename, filename)
+        return {"status": "success", "message": f"Data saved successfully to {filename}."}
         
     except Exception as e:
         logging.critical(f"Error saving data to {filename}: {e}")
-        # Remove the temporary file if an error occurred
+        # Usunięcie pliku tymczasowego, jeśli wystąpił błąd
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
+        return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
 
 def load_from_file(filename):
     try:
@@ -62,20 +84,6 @@ def load_from_file(filename):
     except Exception as e:
         logging.critical(f"Error loading data from {filename}: {e}")
         return {}
-
-def load_validators_from_file():
-    validators = []
-    try:
-        with open(VALIDATORS_FILE, 'r') as file:
-            for line in file:
-                try:
-                    name, protx = line.strip().split(',')
-                    validators.append({"name": name, "protx": protx})
-                except ValueError as e:
-                    logging.critical(f"Error parsing line in {VALIDATORS_FILE}: {line.strip()} - {e}")
-    except Exception as e:
-        logging.critical(f"Unexpected error while reading {VALIDATORS_FILE}: {e}")
-    return validators
 
 def fetch_validators():
     global error_message
@@ -232,18 +240,31 @@ def heartbeat():
             "epoch_end_time": epoch_end_time,
             "in_quorum": in_quorum
         }
-        save_to_file(heartbeat_data, HEARTBEAT_FILE)
-        return jsonify({"message": "Heartbeat data saved successfully."}), 200
+        # Save data to file and get the result
+        result = save_to_file(heartbeat_data, HEARTBEAT_FILE)
+
+        # Determine the HTTP status code based on the result of file saving
+        status_code = 200 if result["status"] == "success" else 500
+
+        # Return JSON response with detailed message about the file saving result
+        return jsonify(result), status_code
     else:
-        return jsonify({"error": "Invalid data format."}), 400
+        # Return error message if the input data format is invalid
+        return jsonify({"status": "error", "message": "Invalid data format."}), 400
 
 @app.route('/quorumInfo', methods=['POST'])
 def quorum_info():
     global quorum_info_data
     data = request.get_json()
     quorum_info_data = data
-    save_to_file(quorum_info_data, QUORUMINFO_FILE)
-    return jsonify({"message": "Quorum info data saved successfully."}), 200
+    # Save data to file and get the result
+    result = save_to_file(quorum_info_data, QUORUMINFO_FILE)
+
+    # Determine the HTTP status code based on the result of file saving
+    status_code = 200 if result["status"] == "success" else 500
+
+    # Return JSON response with detailed message about the file saving result
+    return jsonify(result), status_code
 
 @app.route('/old')
 def display_validators():
