@@ -58,23 +58,29 @@ def main(report_url, verbose=False):
         print("Error parsing dashmate status JSON.")
         return
 
-    pro_tx_hash = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("proTxHash")
+    # Fetch proTxHash directly from the correct location
+    masternode_data = status_data.get("masternode", {})
+    if not masternode_data:
+        print("Masternode data is missing.")
+        return
+
+    pro_tx_hash = masternode_data.get("proTxHash")
+    if not pro_tx_hash:
+        print("Invalid or missing proTxHash.")
+        return
+
+    # Read other required fields
     core_block_height = status_data.get("core", {}).get("blockHeight")
     latest_block_height = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHeight")
     p2p_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("p2pPortState")
     http_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("httpPortState")
-    po_se_penalty = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("PoSePenalty")
-    po_se_revived_height = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("PoSeRevivedHeight")
-    po_se_ban_height = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("PoSeBanHeight")
-    last_paid_height = status_data.get("masternode", {}).get("nodeState", {}).get("lastPaidHeight")
-    last_paid_time = status_data.get("masternode", {}).get("nodeState", {}).get("lastPaidTime")
-    payment_queue_position = status_data.get("masternode", {}).get("nodeState", {}).get("paymentQueuePosition")
-    next_payment_time = status_data.get("masternode", {}).get("nodeState", {}).get("nextPaymentTime")
-
-    # Step 2: Check if proTxHash is valid
-    if not pro_tx_hash:
-        print("Invalid proTxHash.")
-        return
+    po_se_penalty = masternode_data.get("nodeState", {}).get("dmnState", {}).get("PoSePenalty")
+    po_se_revived_height = masternode_data.get("nodeState", {}).get("dmnState", {}).get("PoSeRevivedHeight")
+    po_se_ban_height = masternode_data.get("nodeState", {}).get("dmnState", {}).get("PoSeBanHeight")
+    last_paid_height = masternode_data.get("nodeState", {}).get("lastPaidHeight")
+    last_paid_time = masternode_data.get("nodeState", {}).get("lastPaidTime")
+    payment_queue_position = masternode_data.get("nodeState", {}).get("paymentQueuePosition")
+    next_payment_time = masternode_data.get("nodeState", {}).get("nextPaymentTime")
 
     # Step 3: Fetch status from external service
     status_info = get_json_response("https://platform-explorer.pshenmic.dev/status", verbose)
