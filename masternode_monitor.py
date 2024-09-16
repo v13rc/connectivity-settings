@@ -1,0 +1,149 @@
+import json
+import os
+import requests
+import subprocess
+import sys
+import time
+
+def run_command(command):
+    """Run a shell command and return its output."""
+    try:
+        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print(f"Error running command {command}: {e}")
+        return None
+
+
+def get_json_response(url):
+    """Get JSON response from a URL."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        print(f"Error fetching URL {url}: {e}")
+        return None
+
+
+def main(report_url):
+    # Step 1: Run the dashmate status command and parse JSON output
+    dashmate_status = run_command("dashmate status --format=json")
+    if not dashmate_status:
+        return
+
+    try:
+        status_data = json.loads(dashmate_status)
+    except json.JSONDecodeError:
+        print("Error parsing dashmate status JSON.")
+        return
+
+    pro_tx_hash = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("proTxHash")
+    core_block_height = status_data.get("core", {}).get("blockHeight")
+    latest_block_height = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHeight")
+    p2p_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("p2pPortState")
+    http_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("httpPortState")
+    po_se_penalty = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("PoSePenalty")
+    po_se_revived_height = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("PoSeRevivedHeight")
+    po_se_ban_height = status_data.get("masternode", {}).get("nodeState", {}).get("dmnState", {}).get("PoSeBanHeight")
+    last_paid_height = status_data.get("masternode", {}).get("nodeState", {}).get("lastPaidHeight")
+    last_paid_time = status_data.get("masternode", {}).get("nodeState", {}).get("lastPaidTime")
+    payment_queue_position = status_data.get("masternode", {}).get("nodeState", {}).get("paymentQueuePosition")
+    next_payment_time = status_data.get("masternode", {}).get("nodeState", {}).get("nextPaymentTime")
+
+    # Step 2: Check if proTxHash is valid
+    if not pro_tx_hash:
+        print("Invalid proTxHash.")
+        return
+
+    # Step 3: Fetch status from external service
+    status_info = get_json_response("https://platform-explorer.pshenmic.dev/status")
+    if not status_info:
+        epoch_number = None
+        epoch_first_block_height = None
+        epoch_start_time = None
+        epoch_end_time = None
+        proposed_block_in_current_epoch = None
+    else:
+        epoch_number = status_info.get("epoch", {}).get("number")
+        epoch_first_block_height = status_info.get("epoch", {}).get("firstBlockHeight")
+        epoch_start_time = status_info.get("epoch", {}).get("startTime")
+        epoch_end_time = status_info.get("epoch", {}).get("endTime")
+
+        # Step 4: Fetch validator data
+        proposed_block_in_current_epoch = 0
+        page = 1
+        while True:
+            validator_info = get_json_response(
+                f"https://platform-explorer.pshenmic.dev/validator/{pro_tx_hash.upper()}?limit=100&page={page}"
+            )
+            if not validator_info or "resultSet" not in validator_info:
+                break
+
+            for result in validator_info["resultSet"]:
+                if result["header"]["height"] > epoch_first_block_height:
+                    proposed_block_in_current_epoch += 1
+
+            # Check pagination
+            if len(validator_info["resultSet"]) < 100:
+                break
+            page += 1
+
+    # Step 5: Collect server and system information
+    server_name = run_command("whoami")
+    uptime = run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime")
+    uptime_in_seconds = run_command("awk '{print $1}' /proc/uptime")
+
+    # Step 6: Send report
+    payload = {
+        "serverName": server_name,
+        "uptime": uptime,
+        "uptimeInSeconds": int(float(uptime_in_seconds)),
+        "proTxHash": pro_tx_hash,
+        "coreBlockHeight": core_block_height,
+        "platformBlockHeight": latest_block_height,
+        "p2pPortState": p2p_port_state,
+        "httpPortState": http_port_state,
+        "poSePenalty": po_se_penalty,
+        "poSeRevivedHeight": po_se_revived_height,
+        "poSeBanHeight": po_se_ban_height,
+        "lastPaidHeight": last_paid_height,
+        "lastPaidTime": last_paid_time,
+        "paymentQueuePosition": payment_queue_position,
+        "nextPaymentTime": next_payment_time,
+        "proposedBlockInCurrentEpoch": proposed_block_in_current_epoch,
+        "epochNumber": epoch_number,
+        "epochFirstBlockHeight": epoch_first_block_height,
+        "epochStartTime": epoch_start_time,
+        "epochEndTime": epoch_end_time
+    }
+
+    try:
+        response = requests.post(report_url, json=payload)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"Error sending report: {e}")
+
+    # Step 7: Fetch active validators
+    active_validators = run_command("curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'")
+    if not active_validators or len(active_validators.splitlines()) < 67:
+        print("Insufficient active validators or error fetching them.")
+        return
+
+    # Step 8: Check if proTxHash is in active validators
+    if pro_tx_hash.upper() in active_validators.upper().splitlines():
+        print("proTxHash is in active validators list.")
+        return
+
+    # Step 9: Restart server if uptime is greater than 24 hours
+    if float(uptime_in_seconds) > 86400:
+        print("Restarting server...")
+        run_command("sudo reboot")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 masternode_monitor.py <report_url>")
+        sys.exit(1)
+
+    report_url = sys.argv[1]
+    main(report_url)
