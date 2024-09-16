@@ -60,19 +60,17 @@ def save_to_file(data, filename):
         return {"status": "error", "message": error_msg}
 
     try:
-        temp_filename = filename + ".tmp"  # Tworzenie nazwy pliku tymczasowego
+        temp_filename = filename + ".tmp"
         
-        # Zapis do pliku tymczasowego
         with open(temp_filename, 'w') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         
-        # Zamiana pliku tymczasowego na oryginalny plik
         os.replace(temp_filename, filename)
         return {"status": "success", "message": f"Data saved successfully to {filename}."}
         
     except Exception as e:
         logging.critical(f"Error saving data to {filename}: {e}")
-        # Usunięcie pliku tymczasowego, jeśli wystąpił błąd
+
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
         return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
@@ -216,7 +214,6 @@ def heartbeat():
     in_quorum = data.get('inQuorum')
 
     if server_name:
-        # Przechowywanie nowych danych w strukturze danych
         heartbeat_data[server_name] = {
             "uptime": uptime,
             "uptime_in_seconds": uptime_in_seconds,
