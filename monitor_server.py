@@ -1,7 +1,7 @@
 import os
 import requests
 from flask import Flask, request, render_template_string, jsonify
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 import logging
 import json
 
@@ -14,6 +14,7 @@ logging.basicConfig(
     ]
 )
 
+# Ścieżki do plików
 VALIDATORS_FILE = 'validators.txt'
 HEARTBEAT_FILE = 'app_data/heartbeat_data.json'
 QUORUMINFO_FILE = 'app_data/quoruminfo_data.json'
@@ -38,6 +39,10 @@ quorum_info_data = {}
 
 error_message = None  # Global variable to store error message
 
+# Upewnij się, że katalog 'app_data' istnieje
+if not os.path.exists('app_data'):
+    os.makedirs('app_data')
+
 def ensure_directory_exists(path):
     """Ensure the directory for the given path exists."""
     directory = os.path.dirname(path)
@@ -58,11 +63,13 @@ def save_to_file(data, filename):
 
     try:
         temp_filename = filename + ".tmp"
-        
+        logging.critical(f"Attempting to save to temporary file {temp_filename}")
+
         with open(temp_filename, 'w') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         
         os.replace(temp_filename, filename)
+        logging.critical(f"Successfully saved data to {filename}")
         return {"status": "success", "message": f"Data saved successfully to {filename}."}
         
     except Exception as e:
@@ -73,6 +80,11 @@ def save_to_file(data, filename):
         return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
 
 def load_from_file(filename):
+    """Load data from a file, returning an empty dictionary if the file does not exist."""
+    if not os.path.exists(filename):
+        logging.critical(f"File {filename} does not exist. Returning empty data.")
+        return {}  # Zwróć pusty słownik, jeśli plik nie istnieje
+
     try:
         with open(filename, 'r') as f:
             return json.load(f)
