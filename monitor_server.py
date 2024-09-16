@@ -443,7 +443,11 @@ def display_validators():
 
         <!-- Display Quorum Info Data -->
         <h2>Quorum Information</h2>
+        {% if quorum_info_data %}
         <pre>{{ quorum_info_data | tojson(indent=2) }}</pre>
+        {% else %}
+        <p>No quorum data available.</p>
+        {% endif %}
         
     </body>
     </html>
