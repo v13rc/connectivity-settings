@@ -7,10 +7,10 @@ import json
 
 # Logger configuration - logging debug information for detailed logs
 logging.basicConfig(
-    level=logging.DEBUG,  # Zmienione na DEBUG, aby uzyskać szczegółowe logi
+    level=logging.DEBUG,  # Ustawiono na DEBUG, aby uzyskać szczegółowe logi
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler()  # Log to console
+        logging.StreamHandler()  # Loguj na konsolę
     ]
 )
 
@@ -35,7 +35,7 @@ cache = {
 
 heartbeat_data = {}
 
-error_message = None  # Global variable to store error message
+error_message = None  # Globalna zmienna do przechowywania komunikatów błędów
 
 # Upewnij się, że katalog 'app_data' istnieje
 if not os.path.exists('app_data'):
