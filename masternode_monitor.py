@@ -1,9 +1,8 @@
 import json
 import os
-import requests
 import subprocess
 import sys
-import time
+
 
 def run_command(command):
     """Run a shell command and return its output."""
@@ -16,14 +15,22 @@ def run_command(command):
 
 
 def get_json_response(url):
-    """Get JSON response from a URL."""
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as e:
-        print(f"Error fetching URL {url}: {e}")
-        return None
+    """Get JSON response from a URL using curl."""
+    curl_command = f"curl -s {url}"
+    response = run_command(curl_command)
+    if response:
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON response from {url}: {e}")
+    return None
+
+
+def post_json_data(url, data):
+    """Post JSON data to a URL using curl."""
+    json_data = json.dumps(data)
+    curl_command = f"curl -X POST {url} -H 'Content-Type: application/json' -d '{json_data}'"
+    run_command(curl_command)
 
 
 def main(report_url):
@@ -118,11 +125,7 @@ def main(report_url):
         "epochEndTime": epoch_end_time
     }
 
-    try:
-        response = requests.post(report_url, json=payload)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        print(f"Error sending report: {e}")
+    post_json_data(report_url, payload)
 
     # Step 7: Fetch active validators
     active_validators = run_command("curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'")
@@ -139,6 +142,7 @@ def main(report_url):
     if float(uptime_in_seconds) > 86400:
         print("Restarting server...")
         run_command("sudo reboot")
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
