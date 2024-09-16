@@ -4,43 +4,56 @@ import subprocess
 import sys
 
 
-def run_command(command):
+def run_command(command, verbose=False):
     """Run a shell command and return its output."""
+    if verbose:
+        print(f"Running command: {command}")
     try:
         result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        if verbose:
+            print(f"Command output: {result.stdout.strip()}")
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         print(f"Error running command {command}: {e}")
         return None
 
 
-def get_json_response(url):
+def get_json_response(url, verbose=False):
     """Get JSON response from a URL using curl."""
     curl_command = f"curl -s {url}"
-    response = run_command(curl_command)
+    if verbose:
+        print(f"Fetching URL: {url}")
+    response = run_command(curl_command, verbose)
     if response:
         try:
-            return json.loads(response)
+            json_response = json.loads(response)
+            if verbose:
+                print(f"Received JSON: {json.dumps(json_response, indent=2)}")
+            return json_response
         except json.JSONDecodeError as e:
             print(f"Error parsing JSON response from {url}: {e}")
     return None
 
 
-def post_json_data(url, data):
+def post_json_data(url, data, verbose=False):
     """Post JSON data to a URL using curl."""
     json_data = json.dumps(data)
     curl_command = f"curl -X POST {url} -H 'Content-Type: application/json' -d '{json_data}'"
-    run_command(curl_command)
+    if verbose:
+        print(f"Posting data to URL: {url} with payload: {json.dumps(data, indent=2)}")
+    run_command(curl_command, verbose)
 
 
-def main(report_url):
+def main(report_url, verbose=False):
     # Step 1: Run the dashmate status command and parse JSON output
-    dashmate_status = run_command("dashmate status --format=json")
+    dashmate_status = run_command("dashmate status --format=json", verbose)
     if not dashmate_status:
         return
 
     try:
         status_data = json.loads(dashmate_status)
+        if verbose:
+            print(f"Dashmate status JSON: {json.dumps(status_data, indent=2)}")
     except json.JSONDecodeError:
         print("Error parsing dashmate status JSON.")
         return
@@ -64,7 +77,7 @@ def main(report_url):
         return
 
     # Step 3: Fetch status from external service
-    status_info = get_json_response("https://platform-explorer.pshenmic.dev/status")
+    status_info = get_json_response("https://platform-explorer.pshenmic.dev/status", verbose)
     if not status_info:
         epoch_number = None
         epoch_first_block_height = None
@@ -82,7 +95,8 @@ def main(report_url):
         page = 1
         while True:
             validator_info = get_json_response(
-                f"https://platform-explorer.pshenmic.dev/validator/{pro_tx_hash.upper()}?limit=100&page={page}"
+                f"https://platform-explorer.pshenmic.dev/validator/{pro_tx_hash.upper()}?limit=100&page={page}",
+                verbose
             )
             if not validator_info or "resultSet" not in validator_info:
                 break
@@ -97,9 +111,9 @@ def main(report_url):
             page += 1
 
     # Step 5: Collect server and system information
-    server_name = run_command("whoami")
-    uptime = run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime")
-    uptime_in_seconds = run_command("awk '{print $1}' /proc/uptime")
+    server_name = run_command("whoami", verbose)
+    uptime = run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime", verbose)
+    uptime_in_seconds = run_command("awk '{print $1}' /proc/uptime", verbose)
 
     # Step 6: Send report
     payload = {
@@ -125,10 +139,10 @@ def main(report_url):
         "epochEndTime": epoch_end_time
     }
 
-    post_json_data(report_url, payload)
+    post_json_data(report_url, payload, verbose)
 
     # Step 7: Fetch active validators
-    active_validators = run_command("curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'")
+    active_validators = run_command("curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'", verbose)
     if not active_validators or len(active_validators.splitlines()) < 67:
         print("Insufficient active validators or error fetching them.")
         return
@@ -141,13 +155,17 @@ def main(report_url):
     # Step 9: Restart server if uptime is greater than 24 hours
     if float(uptime_in_seconds) > 86400:
         print("Restarting server...")
-        run_command("sudo reboot")
+        run_command("sudo reboot", verbose)
 
 
 if __name__ == "__main__":
+    verbose_mode = '-v' in sys.argv
+    if verbose_mode:
+        sys.argv.remove('-v')
+
     if len(sys.argv) != 2:
-        print("Usage: python3 masternode_monitor.py <report_url>")
+        print("Usage: python3 masternode_monitor.py <report_url> [-v]")
         sys.exit(1)
 
     report_url = sys.argv[1]
-    main(report_url)
+    main(report_url, verbose_mode)
