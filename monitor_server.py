@@ -17,7 +17,6 @@ logging.basicConfig(
 # Ścieżki do plików
 VALIDATORS_FILE = 'validators.txt'
 HEARTBEAT_FILE = 'app_data/heartbeat_data.json'
-QUORUMINFO_FILE = 'app_data/quoruminfo_data.json'
 
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
@@ -35,7 +34,6 @@ cache = {
 }
 
 heartbeat_data = {}
-quorum_info_data = {}
 
 error_message = None  # Global variable to store error message
 
@@ -218,26 +216,11 @@ def heartbeat():
         # Return error message if the input data format is invalid
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
 
-@app.route('/quorumInfo', methods=['POST'])
-def quorum_info():
-    global quorum_info_data
-    data = request.get_json()
-    quorum_info_data = data
-    # Save data to file and get the result
-    result = save_to_file(quorum_info_data, QUORUMINFO_FILE)
-
-    # Determine the HTTP status code based on the result of file saving
-    status_code = 200 if result["status"] == "success" else 500
-
-    # Return JSON response with detailed message about the file saving result
-    return jsonify(result), status_code
-
 @app.route('/old')
 def display_validators():
-    # Load persisted heartbeat and quorum data from file
-    global heartbeat_data, quorum_info_data
+    # Load persisted heartbeat data from file
+    global heartbeat_data
     heartbeat_data = load_from_file(HEARTBEAT_FILE)
-    quorum_info_data = load_from_file(QUORUMINFO_FILE)
 
     hard_coded_validators = load_validators_from_file()
     if not hard_coded_validators:
@@ -401,20 +384,11 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
-
-        <!-- Display Quorum Info Data -->
-        <h2>Quorum Information</h2>
-        {% if quorum_info_data %}
-        <pre>{{ quorum_info_data | tojson(indent=2) }}</pre>
-        {% else %}
-        <p>No quorum data available.</p>
-        {% endif %}
-        
     </body>
     </html>
     """
     
-    return render_template_string(html_template, rows=rows, total_proposed_blocks=total_proposed_blocks, total_blocks_current_epoch=total_blocks_current_epoch, current_time=current_time, epoch_number=epoch_number, epoch_start_time=epoch_start_time, epoch_end_time=epoch_end_time, first_block_height=first_block_height, server_availability=server_availability, error_message=error_message, heartbeat_data=heartbeat_data, quorum_info_data=quorum_info_data)
+    return render_template_string(html_template, rows=rows, total_proposed_blocks=total_proposed_blocks, total_blocks_current_epoch=total_blocks_current_epoch, current_time=current_time, epoch_number=epoch_number, epoch_start_time=epoch_start_time, epoch_end_time=epoch_end_time, first_block_height=first_block_height, server_availability=server_availability, error_message=error_message, heartbeat_data=heartbeat_data)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
