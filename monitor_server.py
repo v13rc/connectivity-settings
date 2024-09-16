@@ -98,6 +98,22 @@ def load_from_file(filename):
         logging.critical(f"Error loading data from {filename}: {e}")
         return {}  # Jeśli inny błąd, zwróć pusty słownik
 
+def load_validators_from_file():
+    """Load validators data from the validators.txt file."""
+    validators = []
+    try:
+        with open(VALIDATORS_FILE, 'r') as file:
+            for line in file:
+                try:
+                    name, protx = line.strip().split(',')
+                    validators.append({"name": name, "protx": protx})
+                    logging.debug(f"Loaded validator {name} with ProTxHash {protx} from file.")
+                except ValueError as e:
+                    logging.critical(f"Error parsing line in {VALIDATORS_FILE}: {line.strip()} - {e}")
+    except Exception as e:
+        logging.critical(f"Unexpected error while reading {VALIDATORS_FILE}: {e}")
+    return validators
+
 def fetch_validators():
     global error_message
     logging.debug("Fetching validators from API.")
