@@ -3,6 +3,7 @@ from flask import Flask, request, render_template_string, jsonify
 from datetime import datetime, timedelta 
 import logging
 import json
+import os
 
 # Logger configuration - logging only critical errors
 logging.basicConfig(
@@ -39,10 +40,20 @@ error_message = None  # Global variable to store error message
 
 def save_to_file(data, filename):
     try:
-        with open(filename, 'w') as f:
-            json.dump(data, f)
+        temp_filename = filename + ".tmp"  # Create temporary file name
+        
+        # Write data to a temporary file
+        with open(temp_filename, 'w') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        
+        # Replace the original file with the temporary file
+        os.replace(temp_filename, filename)
+        
     except Exception as e:
         logging.critical(f"Error saving data to {filename}: {e}")
+        # Remove the temporary file if an error occurred
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
 def load_from_file(filename):
     try:
@@ -173,10 +184,54 @@ def check_server_availability():
 def heartbeat():
     global heartbeat_data
     data = request.get_json()
+
+    # Mapowanie danych z JSON do zmiennych
     server_name = data.get('serverName')
-    last_reboot_timestamp = data.get('lastRebootTimestamp')
-    if server_name and last_reboot_timestamp:
-        heartbeat_data[server_name] = datetime.fromtimestamp(last_reboot_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    uptime = data.get('uptime')
+    uptime_in_seconds = data.get('uptimeInSeconds')
+    pro_tx_hash = data.get('proTxHash')
+    core_block_height = data.get('coreBlockHeight')
+    platform_block_height = data.get('platformBlockHeight')
+    p2p_port_state = data.get('p2pPortState')
+    http_port_state = data.get('httpPortState')
+    po_se_penalty = data.get('poSePenalty')
+    po_se_revived_height = data.get('poSeRevivedHeight')
+    po_se_ban_height = data.get('poSeBanHeight')
+    last_paid_height = data.get('lastPaidHeight')
+    last_paid_time = data.get('lastPaidTime')
+    payment_queue_position = data.get('paymentQueuePosition')
+    next_payment_time = data.get('nextPaymentTime')
+    proposed_block_in_current_epoch = data.get('proposedBlockInCurrentEpoch')
+    epoch_number = data.get('epochNumber')
+    epoch_first_block_height = data.get('epochFirstBlockHeight')
+    epoch_start_time = data.get('epochStartTime')
+    epoch_end_time = data.get('epochEndTime')
+    in_quorum = data.get('inQuorum')
+
+    if server_name:
+        # Przechowywanie nowych danych w strukturze danych
+        heartbeat_data[server_name] = {
+            "uptime": uptime,
+            "uptime_in_seconds": uptime_in_seconds,
+            "pro_tx_hash": pro_tx_hash,
+            "core_block_height": core_block_height,
+            "platform_block_height": platform_block_height,
+            "p2p_port_state": p2p_port_state,
+            "http_port_state": http_port_state,
+            "po_se_penalty": po_se_penalty,
+            "po_se_revived_height": po_se_revived_height,
+            "po_se_ban_height": po_se_ban_height,
+            "last_paid_height": last_paid_height,
+            "last_paid_time": last_paid_time,
+            "payment_queue_position": payment_queue_position,
+            "next_payment_time": next_payment_time,
+            "proposed_block_in_current_epoch": proposed_block_in_current_epoch,
+            "epoch_number": epoch_number,
+            "epoch_first_block_height": epoch_first_block_height,
+            "epoch_start_time": epoch_start_time,
+            "epoch_end_time": epoch_end_time,
+            "in_quorum": in_quorum
+        }
         save_to_file(heartbeat_data, HEARTBEAT_FILE)
         return jsonify({"message": "Heartbeat data saved successfully."}), 200
     else:
@@ -312,12 +367,50 @@ def display_validators():
         <table>
             <tr>
                 <th>Server Name</th>
-                <th>Last Reboot Time</th>
+                <th>Uptime</th>
+                <th>Uptime in Seconds</th>
+                <th>ProTx Hash</th>
+                <th>Core Block Height</th>
+                <th>Platform Block Height</th>
+                <th>P2P Port State</th>
+                <th>HTTP Port State</th>
+                <th>PoSe Penalty</th>
+                <th>PoSe Revived Height</th>
+                <th>PoSe Ban Height</th>
+                <th>Last Paid Height</th>
+                <th>Last Paid Time</th>
+                <th>Payment Queue Position</th>
+                <th>Next Payment Time</th>
+                <th>Proposed Block in Current Epoch</th>
+                <th>Epoch Number</th>
+                <th>Epoch First Block Height</th>
+                <th>Epoch Start Time</th>
+                <th>Epoch End Time</th>
+                <th>In Quorum</th>
             </tr>
-            {% for server, reboot_time in heartbeat_data.items() %}
+            {% for server, data in heartbeat_data.items() %}
             <tr>
                 <td>{{ server }}</td>
-                <td>{{ reboot_time }}</td>
+                <td>{{ data.uptime }}</td>
+                <td>{{ data.uptime_in_seconds }}</td>
+                <td>{{ data.pro_tx_hash }}</td>
+                <td>{{ data.core_block_height }}</td>
+                <td>{{ data.platform_block_height }}</td>
+                <td>{{ data.p2p_port_state }}</td>
+                <td>{{ data.http_port_state }}</td>
+                <td>{{ data.po_se_penalty }}</td>
+                <td>{{ data.po_se_revived_height }}</td>
+                <td>{{ data.po_se_ban_height }}</td>
+                <td>{{ data.last_paid_height }}</td>
+                <td>{{ data.last_paid_time }}</td>
+                <td>{{ data.payment_queue_position }}</td>
+                <td>{{ data.next_payment_time }}</td>
+                <td>{{ data.proposed_block_in_current_epoch }}</td>
+                <td>{{ data.epoch_number }}</td>
+                <td>{{ data.epoch_first_block_height }}</td>
+                <td>{{ data.epoch_start_time }}</td>
+                <td>{{ data.epoch_end_time }}</td>
+                <td>{{ data.in_quorum }}</td>
             </tr>
             {% endfor %}
         </table>
