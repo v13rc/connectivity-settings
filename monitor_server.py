@@ -7,7 +7,7 @@ import json
 
 # Logger configuration - logging only critical errors
 logging.basicConfig(
-    level=logging.CRITICAL,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler()  # Log only to console
