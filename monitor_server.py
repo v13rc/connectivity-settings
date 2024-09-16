@@ -14,12 +14,12 @@ logging.basicConfig(
     ]
 )
 
-# Określ ścieżkę katalogu, w którym mają być zapisywane pliki
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 VALIDATORS_FILE = os.path.join(BASE_DIR, 'validators.txt')
-HEARTBEAT_FILE = os.path.join(BASE_DIR, 'heartbeat_data.json')
-QUORUMINFO_FILE = os.path.join(BASE_DIR, 'quoruminfo_data.json')
+HEARTBEAT_FILE = os.path.expanduser('~/app_data/heartbeat_data.json')
+QUORUMINFO_FILE = os.path.expanduser('~/app_data/quoruminfo_data.json')
+
 
 API_URL = "https://platform-explorer.pshenmic.dev/validators"
 STATUS_API_URL = "https://platform-explorer.pshenmic.dev/status"
@@ -193,7 +193,6 @@ def heartbeat():
     global heartbeat_data
     data = request.get_json()
 
-    # Mapowanie danych z JSON do zmiennych
     server_name = data.get('serverName')
     uptime = data.get('uptime')
     uptime_in_seconds = data.get('uptimeInSeconds')
