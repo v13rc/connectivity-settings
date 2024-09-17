@@ -405,25 +405,25 @@ def display_validators():
                 <tr>
                     <td>{{ server }}</td>
                     <td>{{ data['uptime'] }}</td>
-                    <td>{{ data['uptime_in_seconds'] }}</td>
-                    <td>{{ data['pro_tx_hash'] }}</td>
-                    <td>{{ data['core_block_height'] }}</td>
-                    <td>{{ data['platform_block_height'] }}</td>
-                    <td>{{ data['p2p_port_state'] }}</td>
-                    <td>{{ data['http_port_state'] }}</td>
-                    <td>{{ data['po_se_penalty'] }}</td>
-                    <td>{{ data['po_se_revived_height'] }}</td>
-                    <td>{{ data['po_se_ban_height'] }}</td>
-                    <td>{{ data['last_paid_height'] }}</td>
-                    <td>{{ data['last_paid_time'] }}</td>
-                    <td>{{ data['payment_queue_position'] }}</td>
-                    <td>{{ data['next_payment_time'] }}</td>
-                    <td>{{ data['proposed_block_in_current_epoch'] }}</td>
-                    <td>{{ data['epoch_number'] }}</td>
-                    <td>{{ data['epoch_first_block_height'] }}</td>
-                    <td>{{ data['epoch_start_time'] }}</td>
-                    <td>{{ data['epoch_end_time'] }}</td>
-                    <td>{{ data['in_quorum'] }}</td>
+                    <td>{{ data['uptimeInSeconds'] }}</td>
+                    <td>{{ data['proTxHash'] }}</td>
+                    <td>{{ data['coreBlockHeight'] }}</td>
+                    <td>{{ data['platformBlockHeight'] }}</td>
+                    <td>{{ data['p2pPortState'] }}</td>
+                    <td>{{ data['httpPortState'] }}</td>
+                    <td>{{ data['poSePenalty'] }}</td>
+                    <td>{{ data['poSeRevivedHeight'] }}</td>
+                    <td>{{ data['poSeBanHeight'] }}</td>
+                    <td>{{ data['lastPaidHeight'] }}</td>
+                    <td>{{ data['lastPaidTime'] }}</td>
+                    <td>{{ data['paymentQueuePosition'] }}</td>
+                    <td>{{ data['nextPaymentTime'] }}</td>
+                    <td>{{ data['proposedBlockInCurrentEpoch'] }}</td>
+                    <td>{{ data['epochNumber'] }}</td>
+                    <td>{{ data['epochFirstBlockHeight'] }}</td>
+                    <td>{{ data['epochStartTime'] }}</td>
+                    <td>{{ data['epochEndTime'] }}</td>
+                    <td>{{ data['inQuorum'] }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -435,6 +435,7 @@ def display_validators():
     except Exception as e:
         logging.debug(f"Exception occurred in display_validators: {e}")
         return "An error occurred while processing your request.", 500
+
 
 
 if __name__ == '__main__':
