@@ -96,12 +96,12 @@ def main(report_url, verbose=False):
         epoch_start_time = status_info.get("epoch", {}).get("startTime")
         epoch_end_time = status_info.get("epoch", {}).get("endTime")
 
-        # Step 4: Fetch validator data
+        # Step 4: Fetch validator data with /blocks added to the URL
         proposed_block_in_current_epoch = 0
         page = 1
         while True:
             validator_info = get_json_response(
-                f"https://platform-explorer.pshenmic.dev/validator/{pro_tx_hash.upper()}?limit=100&page={page}",
+                f"https://platform-explorer.pshenmic.dev/validator/{pro_tx_hash.upper()}/blocks?limit=100&page={page}",
                 verbose
             )
             if not validator_info or "resultSet" not in validator_info:
