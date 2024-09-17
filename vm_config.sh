@@ -11,7 +11,7 @@ apt update && sudo apt upgrade -y
 [ $? -eq 0 ] && echo -e "${GREEN}Success update and upgrade${NC}" || echo -e "${RED}Failed to update and upgrade${NC}"
 
 #Install packages
-apt install -y ufw fail2ban htop nano iputils-ping openvpn jq
+apt install -y ufw fail2ban htop nano iputils-ping openvpn jq cron
 [ $? -eq 0 ] && echo -e "${GREEN}Success install packages${NC}" || echo -e "${RED}Failed install packages${NC}"
 
 #Net configuration
