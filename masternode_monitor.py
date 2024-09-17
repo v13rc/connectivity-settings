@@ -127,12 +127,15 @@ def main(report_url, verbose=False):
         print("Insufficient active validators or error fetching them.")
         in_quorum = None
     else:
-        if pro_tx_hash.upper() in active_validators.upper().splitlines():
+        # Prepare list of active validators without quotes
+        active_validators_list = [validator.strip('"') for validator in active_validators.splitlines()]
+        if pro_tx_hash.upper() in active_validators_list:
             print("proTxHash is in active validators list.")
             in_quorum = True
         else:
+            print("proTxHash is not in active validators list.")
             in_quorum = False
-
+            
     # Step 7: Prepare and send the report
     payload = {
         "serverName": server_name,
