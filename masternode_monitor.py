@@ -81,6 +81,10 @@ def main(report_url, verbose=False):
     last_paid_time = masternode_data.get("nodeState", {}).get("lastPaidTime")
     payment_queue_position = masternode_data.get("nodeState", {}).get("paymentQueuePosition")
     next_payment_time = masternode_data.get("nodeState", {}).get("nextPaymentTime")
+    
+    # Read additional fields from JSON
+    latest_block_hash = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHash")
+    latest_block_height = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHeight")
 
     # Step 3: Fetch status from external service
     status_info = get_json_response("https://platform-explorer.pshenmic.dev/status", verbose)
@@ -126,17 +130,22 @@ def main(report_url, verbose=False):
     if not active_validators or len(active_validators.splitlines()) < 67:
         print("Insufficient active validators or error fetching them.")
         in_quorum = None
+        validators_in_quorum = []
     else:
         # Prepare list of active validators without quotes
         active_validators_list = [validator.strip('"') for validator in active_validators.splitlines()]
+        validators_in_quorum = active_validators_list
         if pro_tx_hash.upper() in active_validators_list:
             print("proTxHash is in active validators list.")
             in_quorum = True
         else:
             print("proTxHash is not in active validators list.")
             in_quorum = False
-            
-    # Step 7: Prepare and send the report
+
+    # Step 7: Get latest block validator
+    latest_block_validator = run_command("curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.proposer.pro_tx_hash'", verbose)
+
+    # Step 8: Prepare and send the report
     payload = {
         "serverName": server_name,
         "uptime": uptime,
@@ -158,12 +167,17 @@ def main(report_url, verbose=False):
         "epochFirstBlockHeight": epoch_first_block_height,
         "epochStartTime": epoch_start_time,
         "epochEndTime": epoch_end_time,
-        "inQuorum": in_quorum
+        "inQuorum": in_quorum,
+        "proposedBlockInPreviousEpoch": 0,  # This would be set dynamically based on previous epoch data
+        "validatorsInQuorum": validators_in_quorum,
+        "latestBlockHash": latest_block_hash,
+        "latestBlockHeight": latest_block_height,
+        "latestBlockValidator": latest_block_validator.strip('"') if latest_block_validator else None
     }
 
     post_json_data(report_url, payload, verbose)
 
-    # Step 8: Restart server if uptime is greater than 24 hours and not in quorum
+    # Step 9: Restart server if uptime is greater than 24 hours and not in quorum
     if in_quorum is False and float(uptime_in_seconds) > 86400:
         print("Restarting server...")
         run_command("sudo reboot", verbose)
