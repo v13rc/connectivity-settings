@@ -178,7 +178,7 @@ def main(report_url, verbose=False):
     post_json_data(report_url, payload, verbose)
 
     # Step 9: Restart server if uptime is greater than 24 hours and not in quorum
-    if in_quorum is False and float(uptime_in_seconds) > 86400:
+    if in_quorum is False and float(uptime_in_seconds) > 31 * 86400:
         print("Restarting server...")
         run_command("sudo reboot", verbose)
 
