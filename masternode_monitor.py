@@ -26,13 +26,11 @@ def post_json_data(url, data, verbose=False):
 
 def save_protxhash_to_env(protxhash):
     """Save proTxHash to a persistent environment variable in .bashrc."""
-    # Check if the proTxHash is already saved in .bashrc
     bashrc_path = os.path.expanduser("~/.bashrc")
     try:
         with open(bashrc_path, "r") as file:
             lines = file.readlines()
         if any("export PROTXHASH=" in line for line in lines):
-            # Update existing PROTXHASH line
             with open(bashrc_path, "w") as file:
                 for line in lines:
                     if "export PROTXHASH=" in line:
@@ -40,7 +38,6 @@ def save_protxhash_to_env(protxhash):
                     else:
                         file.write(line)
         else:
-            # Append new PROTXHASH line if not found
             with open(bashrc_path, "a") as file:
                 file.write(f"\nexport PROTXHASH={protxhash}\n")
         print(f"proTxHash saved to .bashrc: {protxhash}")
@@ -96,6 +93,17 @@ def main(report_url, verbose=False):
     platform_http_port = masternode_data.get("nodeState", {}).get("dmnState", {}).get("platformHTTPPort", "")
     platform_service_address = f"{node_address}:{platform_http_port}"
 
+    # Initialize variables with default values to avoid unbound errors
+    epoch_number = None
+    epoch_first_block_height = None
+    epoch_start_time = None
+    previous_epoch_number = None
+    previous_epoch_first_block_height = None
+    previous_epoch_start_time = None
+    proposed_block_in_previous_epoch = None
+    proposed_block_in_current_epoch = None
+    balance = None
+
     # Step 2: Try fetching proTxHash from the platform status
     platform_status = run_command(
         f"grpcurl -proto platform.proto -d '{{\"v0\": {{}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getStatus",
@@ -119,14 +127,7 @@ def main(report_url, verbose=False):
     # If proTxHash is still not available, skip further grpcurl service calls
     if not platform_protx_hash:
         print("proTxHash not found in platform status and environment variable is empty. Skipping grpcurl calls.")
-        platform_protx_hash = ""
-
-    # Proceed only if platform_protx_hash is available
-    proposed_block_in_previous_epoch = None
-    proposed_block_in_current_epoch = None
-    balance = None
-
-    if platform_protx_hash:
+    else:
         # Step 3: Fetch current and previous epoch data
         epoch_info = run_command(
             f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"count\":2}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo",
@@ -145,16 +146,8 @@ def main(report_url, verbose=False):
                     previous_epoch_number = previous_epoch.get("number", 0)
                     previous_epoch_first_block_height = previous_epoch.get("firstBlockHeight", "")
                     previous_epoch_start_time = previous_epoch.get("startTime", "")
-                else:
-                    epoch_number = epoch_first_block_height = epoch_start_time = 0
-                    previous_epoch_number = previous_epoch_first_block_height = previous_epoch_start_time = 0
             except json.JSONDecodeError as e:
                 print(f"Error parsing epoch info JSON: {e}")
-                epoch_number = epoch_first_block_height = epoch_start_time = 0
-                previous_epoch_number = previous_epoch_first_block_height = previous_epoch_start_time = 0
-        else:
-            epoch_number = epoch_first_block_height = epoch_start_time = 0
-            previous_epoch_number = previous_epoch_first_block_height = previous_epoch_start_time = 0
 
         # Step 4: Fetch proposed blocks in the previous epoch
         previous_proposed_blocks = run_command(
