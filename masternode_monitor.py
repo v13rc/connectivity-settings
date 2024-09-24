@@ -160,14 +160,20 @@ def main(report_url, verbose=False):
             balance = "0"
     balance = int(balance) if balance.isdigit() else 0
 
-    # Step 7: Collect server and system information
+    # Step 7: Get latest block validator using the updated command
+    latest_block_validator = run_command(
+        f"curl -s http://127.0.0.1:26657/block?height={latest_block_height} | jq -r '.block.header.proposer_pro_tx_hash'",
+        verbose
+    )
+
+    # Step 8: Collect server and system information
     server_name = run_command("whoami", verbose)
     uptime = run_command(
         "awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime",
         verbose)
     uptime_in_seconds = run_command("awk '{print $1}' /proc/uptime", verbose)
 
-    # Step 8: Check if proTxHash is in active validators
+    # Step 9: Check if proTxHash is in active validators
     active_validators = run_command(
         "curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'",
         verbose)
@@ -179,11 +185,6 @@ def main(report_url, verbose=False):
         active_validators_list = [validator.strip('"') for validator in active_validators.splitlines()]
         validators_in_quorum = active_validators_list
         in_quorum = pro_tx_hash.upper() in active_validators_list
-
-    # Step 9: Get latest block validator
-    latest_block_validator = run_command(
-        "curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.proposer.pro_tx_hash'",
-        verbose)
 
     # Step 10: Prepare and send the report
     payload = {
@@ -214,7 +215,7 @@ def main(report_url, verbose=False):
         "validatorsInQuorum": validators_in_quorum,
         "latestBlockHash": latest_block_hash,
         "latestBlockHeight": latest_block_height,
-        "latestBlockValidator": latest_block_validator.strip('"') if latest_block_validator else None,
+        "latestBlockValidator": latest_block_validator,
         "balance": balance
     }
 
