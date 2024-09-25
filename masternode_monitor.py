@@ -260,37 +260,48 @@ def main(report_url, verbose=False):
 
                 search_start = (latest_block_height - latest_block_validator_index) + pro_tx_hash_index
                 search_end = latest_block_height - 1
-                print_verbose(f"Searching blocks from {search_start} to {search_end} to find {pro_tx_hash}.", verbose)
 
-                # Binary search to find the block produced by the validator
-                found_block = False
-                left, right = search_start, search_end
-
-                while left <= right:
-                    mid = (left + right) // 2
-                    result_validator = run_command(
-                        f"curl -s http://127.0.0.1:26657/block?height={mid} | jq -r '.block.header.proposer_pro_tx_hash'",
-                        verbose
+                # Check if searching is necessary based on last should produce block height
+                if last_should_produce_block_height and last_should_produce_block_height > search_start:
+                    print_verbose(
+                        f"LAST_SHOULD_PRODUCE_BLOCK_HEIGHT ({last_should_produce_block_height}) > search_start ({search_start}). "
+                        "Using existing values without further search.", verbose
                     )
-                    result_validator = result_validator.upper()
-                    print_verbose(f"Block {mid} proposed by {result_validator}.", verbose)
+                    # Skip searching and use current environment variables
+                    produce_block_status = "ERROR" if last_produce_block_height != last_should_produce_block_height else "OK"
+                    print_verbose(f"Produce block status set to {produce_block_status} based on existing values.", verbose)
+                else:
+                    print_verbose(f"Searching blocks from {search_start} to {search_end} to find {pro_tx_hash}.", verbose)
 
-                    if result_validator == pro_tx_hash:
-                        set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", mid)
-                        set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
-                        last_produce_block_height = mid
-                        last_should_produce_block_height = mid
-                        found_block = True
-                        produce_block_status = "OK"  # Set status to OK after finding block
-                        print_verbose(f"Validator {pro_tx_hash} found producing block at height {mid}.", verbose)
-                        print_verbose("Produce block status set to OK after finding block.", verbose)
-                        break
-                    elif result_validator < pro_tx_hash:
-                        left = mid + 1
-                        print_verbose(f"Validator {result_validator} is less than {pro_tx_hash}, searching right half.", verbose)
-                    else:
-                        right = mid - 1
-                        print_verbose(f"Validator {result_validator} is greater than {pro_tx_hash}, searching left half.", verbose)
+                    # Binary search to find the block produced by the validator
+                    found_block = False
+                    left, right = search_start, search_end
+
+                    while left <= right:
+                        mid = (left + right) // 2
+                        result_validator = run_command(
+                            f"curl -s http://127.0.0.1:26657/block?height={mid} | jq -r '.block.header.proposer_pro_tx_hash'",
+                            verbose
+                        )
+                        result_validator = result_validator.upper()
+                        print_verbose(f"Block {mid} proposed by {result_validator}.", verbose)
+
+                        if result_validator == pro_tx_hash:
+                            set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", mid)
+                            set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
+                            last_produce_block_height = mid
+                            last_should_produce_block_height = mid
+                            found_block = True
+                            produce_block_status = "OK"  # Set status to OK after finding block
+                            print_verbose(f"Validator {pro_tx_hash} found producing block at height {mid}.", verbose)
+                            print_verbose("Produce block status set to OK after finding block.", verbose)
+                            break
+                        elif result_validator < pro_tx_hash:
+                            left = mid + 1
+                            print_verbose(f"Validator {result_validator} is less than {pro_tx_hash}, searching right half.", verbose)
+                        else:
+                            right = mid - 1
+                            print_verbose(f"Validator {result_validator} is greater than {pro_tx_hash}, searching left half.", verbose)
 
             else:
                 # Log when latest_block_validator is less than pro_tx_hash
