@@ -4,14 +4,19 @@ import subprocess
 import sys
 import base64
 
+# Funkcje pomocnicze
+
+def print_verbose(message, verbose):
+    """Print message only in verbose mode."""
+    if verbose:
+        print(message)
+
 def run_command(command, verbose=False):
     """Run a shell command and return its output."""
-    if verbose:
-        print(f"Running command: {command}")
+    print_verbose(f"Running command: {command}", verbose)
     try:
         result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        if verbose:
-            print(f"Command output: {result.stdout.strip()}")
+        print_verbose(f"Command output: {result.stdout.strip()}", verbose)
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         print(f"Error running command {command}: {e}")
@@ -21,14 +26,39 @@ def post_json_data(url, data, verbose=False):
     """Post JSON data to a URL using curl."""
     json_data = json.dumps(data)
     curl_command = f"curl -X POST {url} -H 'Content-Type: application/json' -d '{json_data}'"
-    if verbose:
-        print(f"Posting data to URL: {url} with payload: {json.dumps(data, indent=2)}")
+    print_verbose(f"Posting data to URL: {url} with payload: {json.dumps(data, indent=2)}", verbose)
     run_command(curl_command, verbose)
 
 def hex_to_base64(hex_value):
     """Convert a hex string to Base64."""
     bytes_value = bytes.fromhex(hex_value)
     return base64.b64encode(bytes_value).decode('utf-8')
+
+def get_env_variable(name):
+    """Get an environment variable and convert it to an integer if possible."""
+    value = os.environ.get(name)
+    return int(value) if value and value.isdigit() else None
+
+def set_env_variable(name, value):
+    """Set an environment variable and ensure it persists in .bashrc."""
+    os.environ[name] = str(value)
+    bashrc_path = os.path.expanduser("~/.bashrc")
+    try:
+        with open(bashrc_path, "r") as file:
+            lines = file.readlines()
+        if any(f"export {name}=" in line for line in lines):
+            with open(bashrc_path, "w") as file:
+                for line in lines:
+                    if f"export {name}=" in line:
+                        file.write(f"export {name}={value}\n")
+                    else:
+                        file.write(line)
+        else:
+            with open(bashrc_path, "a") as file:
+                file.write(f"\nexport {name}={value}\n")
+        print(f"Variable {name} saved to .bashrc: {value}")
+    except Exception as e:
+        print(f"Error saving variable {name} to .bashrc: {e}")
 
 def main(report_url, verbose=False):
     # Step 1: Run the dashmate status command and parse JSON output
@@ -38,8 +68,7 @@ def main(report_url, verbose=False):
 
     try:
         status_data = json.loads(dashmate_status)
-        if verbose:
-            print(f"Dashmate status JSON: {json.dumps(status_data, indent=2)}")
+        print_verbose(f"Dashmate status JSON: {json.dumps(status_data, indent=2)}", verbose)
     except json.JSONDecodeError:
         print("Error parsing dashmate status JSON.")
         return
@@ -88,6 +117,10 @@ def main(report_url, verbose=False):
     proposed_block_in_previous_epoch = None
     proposed_block_in_current_epoch = None
     balance = None
+
+    # Get or initialize environment variables for block heights
+    last_produce_block_height = get_env_variable("LAST_PRODUCED_BLOCK_HEIGHT")
+    last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
 
     # Step 3: Fetch current and previous epoch data
     epoch_info = run_command(
@@ -157,12 +190,13 @@ def main(report_url, verbose=False):
         verbose
     )
 
-    # Step 8: Collect server and system information
-    server_name = run_command("whoami", verbose)
-    uptime = run_command(
-        "awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime",
-        verbose)
-    uptime_in_seconds = run_command("awk '{print $1}' /proc/uptime", verbose)
+    # Step 8: Determine block production status
+    produce_block_status = "NO_DATA"
+    if last_produce_block_height is not None:
+        if last_produce_block_height == last_should_produce_block_height:
+            produce_block_status = "OK"
+        else:
+            produce_block_status = "ERROR"
 
     # Step 9: Check if proTxHash is in active validators
     active_validators = run_command(
@@ -177,11 +211,60 @@ def main(report_url, verbose=False):
         validators_in_quorum = active_validators_list
         in_quorum = pro_tx_hash.upper() in active_validators_list
 
-    # Prepare the payload with available data
+    if in_quorum:
+        if latest_block_validator and latest_block_validator.lower() == pro_tx_hash.lower():
+            # Validator produced the block as expected
+            print_verbose(f"Validator {pro_tx_hash} produced block at height {latest_block_height}.", verbose)
+            set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", latest_block_height)
+            set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", latest_block_height)
+            last_produce_block_height = get_env_variable("LAST_PRODUCED_BLOCK_HEIGHT")
+            last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
+        else:
+            # Determine if validator should have produced the block
+            if latest_block_validator and latest_block_validator.lower() > pro_tx_hash.lower():
+                latest_block_validator_index = validators_in_quorum.index(latest_block_validator.lower())
+                pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash.lower())
+
+                search_start = (latest_block_height - latest_block_validator_index) + pro_tx_hash_index
+                search_end = latest_block_height - 1
+
+                print_verbose(f"Searching blocks from {search_start} to {search_end} to find {pro_tx_hash}.", verbose)
+
+                # Binary search to find the block produced by the validator
+                found_block = False
+                left, right = search_start, search_end
+
+                while left <= right:
+                    mid = (left + right) // 2
+                    result_validator = run_command(
+                        f"curl -s http://127.0.0.1:26657/block?height={mid} | jq -r '.block.header.proposer_pro_tx_hash'",
+                        verbose
+                    )
+                    print_verbose(f"Block {mid} proposed by {result_validator}.", verbose)
+
+                    if result_validator and result_validator.lower() == pro_tx_hash.lower():
+                        set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", mid)
+                        set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
+                        found_block = True
+                        print_verbose(f"Validator {pro_tx_hash} found producing block at height {mid}.", verbose)
+                        break
+                    elif result_validator and result_validator.lower() < pro_tx_hash.lower():
+                        left = mid + 1
+                        print_verbose(f"Validator {result_validator} is less than {pro_tx_hash}, searching right half.", verbose)
+                    else:
+                        right = mid - 1
+                        print_verbose(f"Validator {result_validator} is greater than {pro_tx_hash}, searching left half.", verbose)
+
+                if not found_block:
+                    # Set the block height where it should have produced a block
+                    set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", search_start)
+                    print_verbose(f"No block found for {pro_tx_hash}, setting should produce height to {search_start}.", verbose)
+
+    # Step 10: Prepare the payload with available data
     payload = {
-        "serverName": server_name,
-        "uptime": uptime,
-        "uptimeInSeconds": int(float(uptime_in_seconds)),
+        "serverName": run_command("whoami", verbose),
+        "uptime": run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime", verbose),
+        "uptimeInSeconds": int(float(run_command("awk '{print $1}' /proc/uptime", verbose))),
         "proTxHash": pro_tx_hash,
         "coreBlockHeight": core_block_height,
         "platformBlockHeight": latest_block_height,
@@ -207,20 +290,22 @@ def main(report_url, verbose=False):
         "latestBlockHash": latest_block_hash,
         "latestBlockHeight": latest_block_height,
         "latestBlockValidator": latest_block_validator,
-        "balance": balance
+        "balance": balance,
+        "lastProduceBlockHeight": last_produce_block_height,
+        "lastShouldProduceBlockHeight": last_should_produce_block_height,
+        "produceBlockStatus": produce_block_status
     }
 
     # Filter out None values from the payload
     payload = {k: v for k, v in payload.items() if v is not None}
 
-    # Step 10: Send the report
+    # Step 11: Send the report
     post_json_data(report_url, payload, verbose)
 
-    # Step 11: Restart server if uptime is greater than 31 days and not in quorum
-    if in_quorum is False and float(uptime_in_seconds) > 31 * 86400:
+    # Step 12: Restart server if uptime is greater than 31 days and not in quorum
+    if in_quorum is False and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 31 * 86400:
         print("Restarting server...")
         run_command("sudo reboot", verbose)
-
 
 if __name__ == "__main__":
     verbose_mode = '-v' in sys.argv
