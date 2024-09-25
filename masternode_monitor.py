@@ -93,6 +93,15 @@ def main(report_url, verbose=False):
     # Read additional required fields
     core_block_height = status_data.get("core", {}).get("blockHeight")
     latest_block_height = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHeight")
+
+    # Convert latest_block_height to int to avoid TypeError
+    try:
+        latest_block_height = int(latest_block_height)
+        print_verbose(f"Converted latest_block_height to int: {latest_block_height}", verbose)
+    except ValueError:
+        print("Error: latest_block_height is not a valid integer.")
+        return
+
     p2p_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("p2pPortState")
     http_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("httpPortState")
     po_se_penalty = masternode_data.get("nodeState", {}).get("dmnState", {}).get("PoSePenalty")
