@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import base64
 
 def run_command(command, verbose=False):
     """Run a shell command and return its output."""
@@ -24,29 +25,10 @@ def post_json_data(url, data, verbose=False):
         print(f"Posting data to URL: {url} with payload: {json.dumps(data, indent=2)}")
     run_command(curl_command, verbose)
 
-def save_protxhash_to_env(protxhash):
-    """Save proTxHash to a persistent environment variable in .bashrc."""
-    bashrc_path = os.path.expanduser("~/.bashrc")
-    try:
-        with open(bashrc_path, "r") as file:
-            lines = file.readlines()
-        if any("export PROTXHASH=" in line for line in lines):
-            with open(bashrc_path, "w") as file:
-                for line in lines:
-                    if "export PROTXHASH=" in line:
-                        file.write(f"export PROTXHASH={protxhash}\n")
-                    else:
-                        file.write(line)
-        else:
-            with open(bashrc_path, "a") as file:
-                file.write(f"\nexport PROTXHASH={protxhash}\n")
-        print(f"proTxHash saved to .bashrc: {protxhash}")
-    except Exception as e:
-        print(f"Error saving proTxHash to .bashrc: {e}")
-
-def load_protxhash_from_env():
-    """Load proTxHash from environment variable."""
-    return os.environ.get("PROTXHASH")
+def hex_to_base64(hex_value):
+    """Convert a hex string to Base64."""
+    bytes_value = bytes.fromhex(hex_value)
+    return base64.b64encode(bytes_value).decode('utf-8')
 
 def main(report_url, verbose=False):
     # Step 1: Run the dashmate status command and parse JSON output
@@ -72,6 +54,9 @@ def main(report_url, verbose=False):
     if not pro_tx_hash:
         print("Invalid or missing proTxHash.")
         return
+
+    # Convert pro_tx_hash from hex to Base64 to get platform_protx_hash
+    platform_protx_hash = hex_to_base64(pro_tx_hash)
 
     # Read additional required fields
     core_block_height = status_data.get("core", {}).get("blockHeight")
@@ -104,91 +89,67 @@ def main(report_url, verbose=False):
     proposed_block_in_current_epoch = None
     balance = None
 
-    # Step 2: Try fetching proTxHash from the platform status
-    platform_status = run_command(
-        f"grpcurl -proto platform.proto -d '{{\"v0\": {{}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getStatus",
+    # Step 3: Fetch current and previous epoch data
+    epoch_info = run_command(
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"count\":2}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo",
         verbose
     )
-
-    platform_protx_hash = ""
-    if platform_status:
+    if epoch_info:
         try:
-            platform_status_json = json.loads(platform_status)
-            platform_protx_hash = platform_status_json.get("v0", {}).get("node", {}).get("proTxHash", "")
-            if platform_protx_hash:
-                save_protxhash_to_env(platform_protx_hash)
+            epoch_info_json = json.loads(epoch_info)
+            epoch_infos = epoch_info_json.get("v0", {}).get("epochs", {}).get("epochInfos", [])
+            if len(epoch_infos) == 2:
+                previous_epoch = epoch_infos[0]
+                current_epoch = epoch_infos[1]
+                epoch_number = current_epoch.get("number", 0)
+                epoch_first_block_height = current_epoch.get("firstBlockHeight", "")
+                epoch_start_time = current_epoch.get("startTime", "")
+                previous_epoch_number = previous_epoch.get("number", 0)
+                previous_epoch_first_block_height = previous_epoch.get("firstBlockHeight", "")
+                previous_epoch_start_time = previous_epoch.get("startTime", "")
         except json.JSONDecodeError as e:
-            print(f"Error parsing platform status JSON: {e}")
+            print(f"Error parsing epoch info JSON: {e}")
 
-    if not platform_protx_hash:
-        # Load proTxHash from environment if not retrieved from platform status
-        platform_protx_hash = load_protxhash_from_env()
+    # Step 4: Fetch proposed blocks in the previous epoch
+    previous_proposed_blocks = run_command(
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {previous_epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
+        verbose
+    )
+    if previous_proposed_blocks:
+        try:
+            previous_blocks_json = json.loads(previous_proposed_blocks)
+            count_info = previous_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
+                "evonodesProposedBlockCounts", [])
+            proposed_block_in_previous_epoch = count_info[0].get("count", 0) if count_info else 0
+        except (json.JSONDecodeError, IndexError, KeyError):
+            proposed_block_in_previous_epoch = 0
 
-    # If proTxHash is still not available, skip further grpcurl service calls
-    if not platform_protx_hash:
-        print("proTxHash not found in platform status and environment variable is empty. Skipping grpcurl calls.")
-    else:
-        # Step 3: Fetch current and previous epoch data
-        epoch_info = run_command(
-            f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"count\":2}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo",
-            verbose
-        )
-        if epoch_info:
-            try:
-                epoch_info_json = json.loads(epoch_info)
-                epoch_infos = epoch_info_json.get("v0", {}).get("epochs", {}).get("epochInfos", [])
-                if len(epoch_infos) == 2:
-                    previous_epoch = epoch_infos[0]
-                    current_epoch = epoch_infos[1]
-                    epoch_number = current_epoch.get("number", 0)
-                    epoch_first_block_height = current_epoch.get("firstBlockHeight", "")
-                    epoch_start_time = current_epoch.get("startTime", "")
-                    previous_epoch_number = previous_epoch.get("number", 0)
-                    previous_epoch_first_block_height = previous_epoch.get("firstBlockHeight", "")
-                    previous_epoch_start_time = previous_epoch.get("startTime", "")
-            except json.JSONDecodeError as e:
-                print(f"Error parsing epoch info JSON: {e}")
+    # Step 5: Fetch proposed blocks in the current epoch
+    current_proposed_blocks = run_command(
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
+        verbose
+    )
+    if current_proposed_blocks:
+        try:
+            current_blocks_json = json.loads(current_proposed_blocks)
+            count_info = current_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
+                "evonodesProposedBlockCounts", [])
+            proposed_block_in_current_epoch = count_info[0].get("count", 0) if count_info else 0
+        except (json.JSONDecodeError, IndexError, KeyError):
+            proposed_block_in_current_epoch = 0
 
-        # Step 4: Fetch proposed blocks in the previous epoch
-        previous_proposed_blocks = run_command(
-            f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {previous_epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
-            verbose
-        )
-        if previous_proposed_blocks:
-            try:
-                previous_blocks_json = json.loads(previous_proposed_blocks)
-                count_info = previous_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
-                    "evonodesProposedBlockCounts", [])
-                proposed_block_in_previous_epoch = count_info[0].get("count", 0) if count_info else 0
-            except (json.JSONDecodeError, IndexError, KeyError):
-                proposed_block_in_previous_epoch = 0
-
-        # Step 5: Fetch proposed blocks in the current epoch
-        current_proposed_blocks = run_command(
-            f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
-            verbose
-        )
-        if current_proposed_blocks:
-            try:
-                current_blocks_json = json.loads(current_proposed_blocks)
-                count_info = current_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
-                    "evonodesProposedBlockCounts", [])
-                proposed_block_in_current_epoch = count_info[0].get("count", 0) if count_info else 0
-            except (json.JSONDecodeError, IndexError, KeyError):
-                proposed_block_in_current_epoch = 0
-
-        # Step 6: Fetch balance for the node
-        balance_response = run_command(
-            f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"id\": \"{platform_protx_hash}\"}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
-            verbose
-        )
-        if balance_response:
-            try:
-                balance_json = json.loads(balance_response)
-                balance = balance_json.get("v0", {}).get("balance", "0")
-            except json.JSONDecodeError:
-                balance = "0"
-        balance = int(balance) if balance.isdigit() else 0
+    # Step 6: Fetch balance for the node
+    balance_response = run_command(
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"id\": \"{platform_protx_hash}\"}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
+        verbose
+    )
+    if balance_response:
+        try:
+            balance_json = json.loads(balance_response)
+            balance = balance_json.get("v0", {}).get("balance", "0")
+        except json.JSONDecodeError:
+            balance = "0"
+    balance = int(balance) if balance.isdigit() else 0
 
     # Step 7: Get latest block validator using the updated command
     latest_block_validator = run_command(
