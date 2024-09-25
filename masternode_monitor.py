@@ -84,6 +84,9 @@ def main(report_url, verbose=False):
         print("Invalid or missing proTxHash.")
         return
 
+    # Ensure proTxHash is uppercase
+    pro_tx_hash = pro_tx_hash.upper()
+
     # Convert pro_tx_hash from hex to Base64 to get platform_protx_hash
     platform_protx_hash = hex_to_base64(pro_tx_hash)
 
@@ -189,6 +192,7 @@ def main(report_url, verbose=False):
         f"curl -s http://127.0.0.1:26657/block?height={latest_block_height} | jq -r '.block.header.proposer_pro_tx_hash'",
         verbose
     )
+    latest_block_validator = latest_block_validator.upper()
     print_verbose(f"Latest block {latest_block_height} proposed by {latest_block_validator}.", verbose)
 
     # Step 8: Determine block production status
@@ -220,14 +224,14 @@ def main(report_url, verbose=False):
         in_quorum = None
         validators_in_quorum = []
     else:
-        active_validators_list = [validator.strip('"') for validator in active_validators.splitlines()]
+        active_validators_list = [validator.strip('"').upper() for validator in active_validators.splitlines()]
         validators_in_quorum = active_validators_list
-        in_quorum = pro_tx_hash.upper() in active_validators_list
+        in_quorum = pro_tx_hash in active_validators_list
         print_verbose(f"Validator {pro_tx_hash} {'is' if in_quorum else 'is not'} in quorum.", verbose)
 
     if in_quorum:
         print_verbose(f"Validator {pro_tx_hash} is in quorum.", verbose)
-        if latest_block_validator and latest_block_validator.lower() == pro_tx_hash.lower():
+        if latest_block_validator == pro_tx_hash:
             # Validator produced the block as expected
             print_verbose(f"Validator {pro_tx_hash} produced block at height {latest_block_height}.", verbose)
             set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", latest_block_height)
@@ -237,10 +241,10 @@ def main(report_url, verbose=False):
         else:
             # Determine if validator should have produced the block
             print_verbose("Checking if validator should have produced the block.", verbose)
-            if latest_block_validator and latest_block_validator.lower() > pro_tx_hash.lower():
+            if latest_block_validator > pro_tx_hash:
                 print_verbose(f"Validator {latest_block_validator} is greater than {pro_tx_hash}.", verbose)
-                latest_block_validator_index = validators_in_quorum.index(latest_block_validator.lower())
-                pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash.lower())
+                latest_block_validator_index = validators_in_quorum.index(latest_block_validator)
+                pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash)
                 print_verbose(f"Validator {latest_block_validator} index: {latest_block_validator_index}, {pro_tx_hash} index: {pro_tx_hash_index}.", verbose)
 
                 search_start = (latest_block_height - latest_block_validator_index) + pro_tx_hash_index
@@ -257,15 +261,16 @@ def main(report_url, verbose=False):
                         f"curl -s http://127.0.0.1:26657/block?height={mid} | jq -r '.block.header.proposer_pro_tx_hash'",
                         verbose
                     )
+                    result_validator = result_validator.upper()
                     print_verbose(f"Block {mid} proposed by {result_validator}.", verbose)
 
-                    if result_validator and result_validator.lower() == pro_tx_hash.lower():
+                    if result_validator == pro_tx_hash:
                         set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", mid)
                         set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
                         found_block = True
                         print_verbose(f"Validator {pro_tx_hash} found producing block at height {mid}.", verbose)
                         break
-                    elif result_validator and result_validator.lower() < pro_tx_hash.lower():
+                    elif result_validator < pro_tx_hash:
                         left = mid + 1
                         print_verbose(f"Validator {result_validator} is less than {pro_tx_hash}, searching right half.", verbose)
                     else:
