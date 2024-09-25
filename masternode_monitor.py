@@ -261,6 +261,10 @@ def main(report_url, verbose=False):
                 search_start = (latest_block_height - latest_block_validator_index) + pro_tx_hash_index
                 search_end = latest_block_height - 1
 
+                # Display the variables being checked
+                print_verbose(f"Checking if search is necessary with LAST_SHOULD_PRODUCE_BLOCK_HEIGHT: {last_should_produce_block_height}, "
+                              f"search_start: {search_start}.", verbose)
+                
                 # Check if searching is necessary based on last should produce block height
                 if last_should_produce_block_height and last_should_produce_block_height > search_start:
                     print_verbose(
