@@ -247,6 +247,8 @@ def main(report_url, verbose=False):
             set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", latest_block_height)
             last_produce_block_height = get_env_variable("LAST_PRODUCED_BLOCK_HEIGHT")
             last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
+            produce_block_status = "OK"  # Set status to OK after setting block heights
+            print_verbose("Produce block status set to OK after producing expected block.", verbose)
         else:
             # Determine if validator should have produced the block
             print_verbose("Checking if validator should have produced the block.", verbose)
@@ -276,8 +278,12 @@ def main(report_url, verbose=False):
                     if result_validator == pro_tx_hash:
                         set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", mid)
                         set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
+                        last_produce_block_height = mid
+                        last_should_produce_block_height = mid
                         found_block = True
+                        produce_block_status = "OK"  # Set status to OK after finding block
                         print_verbose(f"Validator {pro_tx_hash} found producing block at height {mid}.", verbose)
+                        print_verbose("Produce block status set to OK after finding block.", verbose)
                         break
                     elif result_validator < pro_tx_hash:
                         left = mid + 1
@@ -289,7 +295,10 @@ def main(report_url, verbose=False):
                 if not found_block:
                     # Set the block height where it should have produced a block
                     set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", search_start)
+                    last_should_produce_block_height = search_start
                     print_verbose(f"No block found for {pro_tx_hash}, setting should produce height to {search_start}.", verbose)
+                    produce_block_status = "ERROR"  # Set status to ERROR if no block is found
+                    print_verbose("Produce block status set to ERROR, no block found.", verbose)
 
     # Step 10: Prepare the payload with available data
     payload = {
