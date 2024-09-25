@@ -292,13 +292,9 @@ def main(report_url, verbose=False):
                         right = mid - 1
                         print_verbose(f"Validator {result_validator} is greater than {pro_tx_hash}, searching left half.", verbose)
 
-                if not found_block:
-                    # Set the block height where it should have produced a block
-                    set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", search_start)
-                    last_should_produce_block_height = search_start
-                    print_verbose(f"No block found for {pro_tx_hash}, setting should produce height to {search_start}.", verbose)
-                    produce_block_status = "ERROR"  # Set status to ERROR if no block is found
-                    print_verbose("Produce block status set to ERROR, no block found.", verbose)
+            else:
+                # Log when latest_block_validator is less than pro_tx_hash
+                print_verbose(f"Validator {latest_block_validator} is less than {pro_tx_hash}.", verbose)
 
     # Step 10: Prepare the payload with available data
     payload = {
