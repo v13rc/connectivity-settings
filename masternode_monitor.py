@@ -310,11 +310,14 @@ def main(report_url, verbose=False):
                         result_validator = result_validator.upper()
                         print_verbose(f"Block {mid} proposed by {result_validator}.", verbose)
 
+                        # Update LAST_SHOULD_PRODUCE_BLOCK_HEIGHT at each step
+                        set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
+                        last_should_produce_block_height = mid
+
                         if result_validator == pro_tx_hash:
+                            # Block found, update LAST_PRODUCED_BLOCK_HEIGHT
                             set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", mid)
-                            set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
                             last_produce_block_height = mid
-                            last_should_produce_block_height = mid
                             found_block = True
                             produce_block_status = "OK"  # Set status to OK after finding block
                             print_verbose(f"Validator {pro_tx_hash} found producing block at height {mid}.", verbose)
@@ -326,6 +329,11 @@ def main(report_url, verbose=False):
                         else:
                             right = mid - 1
                             print_verbose(f"Validator {result_validator} is greater than {pro_tx_hash}, searching left half.", verbose)
+
+                    # If block was not found, set the status to ERROR
+                    if not found_block:
+                        produce_block_status = "ERROR"
+                        print_verbose("Block not found, produce block status set to ERROR.", verbose)
 
             else:
                 # Log when latest_block_validator is less than pro_tx_hash
