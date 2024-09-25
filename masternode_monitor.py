@@ -226,6 +226,7 @@ def main(report_url, verbose=False):
         print_verbose(f"Validator {pro_tx_hash} {'is' if in_quorum else 'is not'} in quorum.", verbose)
 
     if in_quorum:
+        print_verbose(f"Validator {pro_tx_hash} is in quorum.", verbose)
         if latest_block_validator and latest_block_validator.lower() == pro_tx_hash.lower():
             # Validator produced the block as expected
             print_verbose(f"Validator {pro_tx_hash} produced block at height {latest_block_height}.", verbose)
@@ -237,6 +238,7 @@ def main(report_url, verbose=False):
             # Determine if validator should have produced the block
             print_verbose("Checking if validator should have produced the block.", verbose)
             if latest_block_validator and latest_block_validator.lower() > pro_tx_hash.lower():
+                print_verbose(f"Validator {latest_block_validator} is greater than {pro_tx_hash}.", verbose)
                 latest_block_validator_index = validators_in_quorum.index(latest_block_validator.lower())
                 pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash.lower())
                 print_verbose(f"Validator {latest_block_validator} index: {latest_block_validator_index}, {pro_tx_hash} index: {pro_tx_hash_index}.", verbose)
