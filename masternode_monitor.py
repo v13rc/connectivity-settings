@@ -34,6 +34,20 @@ def hex_to_base64(hex_value):
     bytes_value = bytes.fromhex(hex_value)
     return base64.b64encode(bytes_value).decode('utf-8')
 
+def load_bashrc_variables():
+    """Load environment variables from ~/.bashrc."""
+    bashrc_path = os.path.expanduser("~/.bashrc")
+    if os.path.exists(bashrc_path):
+        with open(bashrc_path, "r") as file:
+            lines = file.readlines()
+        for line in lines:
+            if line.startswith("export"):
+                try:
+                    key, value = line.replace("export ", "").strip().split("=")
+                    os.environ[key] = value
+                except ValueError:
+                    continue
+
 def get_env_variable(name):
     """Get an environment variable and convert it to an integer if possible."""
     value = os.environ.get(name)
@@ -61,6 +75,9 @@ def set_env_variable(name, value):
         print(f"Error saving variable {name} to .bashrc: {e}")
 
 def main(report_url, verbose=False):
+    # Load environment variables from ~/.bashrc to ensure they are available
+    load_bashrc_variables()
+
     # Step 1: Run the dashmate status command and parse JSON output
     dashmate_status = run_command("dashmate status --format=json", verbose)
     if not dashmate_status:
