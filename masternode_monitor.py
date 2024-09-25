@@ -189,27 +189,41 @@ def main(report_url, verbose=False):
         f"curl -s http://127.0.0.1:26657/block?height={latest_block_height} | jq -r '.block.header.proposer_pro_tx_hash'",
         verbose
     )
+    print_verbose(f"Latest block {latest_block_height} proposed by {latest_block_validator}.", verbose)
 
     # Step 8: Determine block production status
-    produce_block_status = "NO_DATA"
+    print_verbose("Determining block production status.", verbose)
     if last_produce_block_height is not None:
+        print_verbose(f"Last produced block height: {last_produce_block_height}", verbose)
+        print_verbose(f"Last should produce block height: {last_should_produce_block_height}", verbose)
         if last_produce_block_height == last_should_produce_block_height:
             produce_block_status = "OK"
+            print_verbose("Produce block status: OK", verbose)
         else:
             produce_block_status = "ERROR"
+            print_verbose("Produce block status: ERROR", verbose)
+    else:
+        produce_block_status = "NO_DATA"
+        print_verbose("Produce block status: NO_DATA", verbose)
 
     # Step 9: Check if proTxHash is in active validators
+    print_verbose("Checking if validator is in quorum.", verbose)
     active_validators = run_command(
         "curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'",
         verbose)
-    if not active_validators or len(active_validators.splitlines()) < 67:
-        print("Insufficient active validators or error fetching them.")
+    if not active_validators:
+        print_verbose("Failed to retrieve active validators.", verbose)
+        in_quorum = None
+        validators_in_quorum = []
+    elif len(active_validators.splitlines()) < 67:
+        print_verbose("Insufficient number of active validators.", verbose)
         in_quorum = None
         validators_in_quorum = []
     else:
         active_validators_list = [validator.strip('"') for validator in active_validators.splitlines()]
         validators_in_quorum = active_validators_list
         in_quorum = pro_tx_hash.upper() in active_validators_list
+        print_verbose(f"Validator {pro_tx_hash} {'is' if in_quorum else 'is not'} in quorum.", verbose)
 
     if in_quorum:
         if latest_block_validator and latest_block_validator.lower() == pro_tx_hash.lower():
@@ -221,13 +235,14 @@ def main(report_url, verbose=False):
             last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
         else:
             # Determine if validator should have produced the block
+            print_verbose("Checking if validator should have produced the block.", verbose)
             if latest_block_validator and latest_block_validator.lower() > pro_tx_hash.lower():
                 latest_block_validator_index = validators_in_quorum.index(latest_block_validator.lower())
                 pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash.lower())
+                print_verbose(f"Validator {latest_block_validator} index: {latest_block_validator_index}, {pro_tx_hash} index: {pro_tx_hash_index}.", verbose)
 
                 search_start = (latest_block_height - latest_block_validator_index) + pro_tx_hash_index
                 search_end = latest_block_height - 1
-
                 print_verbose(f"Searching blocks from {search_start} to {search_end} to find {pro_tx_hash}.", verbose)
 
                 # Binary search to find the block produced by the validator
