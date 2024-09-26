@@ -413,7 +413,8 @@ def display_validators():
         server_names=server_names,
         heartbeat_data=heartbeat_data,
         format_protx=format_protx,
-        get_node_type=get_node_type
+        get_node_type=get_node_type,
+        convert_to_dash=convert_to_dash  # Ensure this function is passed correctly
     )
 
 if __name__ == '__main__':
