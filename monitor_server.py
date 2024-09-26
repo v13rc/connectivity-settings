@@ -4,23 +4,23 @@ from datetime import datetime, timedelta
 import logging
 import json
 
-# Logger configuration - logging debug information for detailed logs
+# Logger configuration
 logging.basicConfig(
-    level=logging.DEBUG,  # Set to DEBUG to get detailed logs
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler()  # Log to the console
+        logging.StreamHandler()
     ]
 )
 
-# Paths to files
+# File path
 HEARTBEAT_FILE = 'app_data/heartbeat_data.json'
 
 app = Flask(__name__)
 
 heartbeat_data = {}
 
-# Ensure the 'app_data' directory exists
+# Ensure 'app_data' directory exists
 if not os.path.exists('app_data'):
     logging.debug("Creating directory 'app_data'.")
     os.makedirs('app_data')
@@ -445,7 +445,7 @@ def display_validators():
         latest_block_validator=latest_block_validator,
         format_protx=format_protx,
         get_node_type=get_node_type,
-        convert_to_dash=convert_to_dash  # Ensure this function is passed correctly
+        convert_to_dash=convert_to_dash
     )
 
 if __name__ == '__main__':
