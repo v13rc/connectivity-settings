@@ -75,8 +75,8 @@ def convert_to_dash(credits):
 
 
 def format_timestamp(timestamp):
-    """Convert a timestamp to a shorter, human-readable format in UTC+1."""
-    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc).astimezone(timezone(timedelta(hours=1)))
+    """Convert a timestamp to a shorter, human-readable format."""
+    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
     return dt.strftime('%b %d %H:%M')
 
 
@@ -166,13 +166,13 @@ def display_validators():
             epoch_number = server.get('epochNumber', epoch_number)
             epoch_first_block_height = int(server.get('epochFirstBlockHeight', epoch_first_block_height))
             latest_block_height = int(server.get('latestBlockHeight', latest_block_height))
-            epoch_start_time = int(server.get('epochStartTime', epoch_start_time))
+            epoch_start_time = server.get('epochStartTime', epoch_start_time)
 
     total_balance_dash = convert_to_dash(total_balance_credits)
     blocks_in_epoch = latest_block_height - epoch_first_block_height
     share_proposed_blocks = (total_proposed_blocks / blocks_in_epoch) * 100 if blocks_in_epoch else 0
     epoch_start_human = format_timestamp(epoch_start_time)
-    epoch_end_time = datetime.fromtimestamp(epoch_start_time / 1000, tz=timezone.utc) + timedelta(days=9.125)
+    epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000, tz=timezone.utc) + timedelta(days=9.125)
     epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=1))).strftime('%b %d %H:%M')
 
     # Helper function to format ProTxHash to wrap into four lines
@@ -241,6 +241,9 @@ def display_validators():
             .highlight-latest {
                 background-color: #d4f4d2;
             }
+            .hidden {
+                display: none;
+            }
             meta[name="format-detection"] {
                 format-detection: none;
             }
@@ -249,7 +252,7 @@ def display_validators():
     </head>
     <body>
         <h1>Masternodes and Evonodes Monitor</h1>
-        <p>Data fetched on: {{ current_time }}</p>
+        <p>Data fetched on: <span class="local-time">{{ current_time }}</span></p>
 
         <!-- Aggregate Data Table -->
         <table>
@@ -280,8 +283,8 @@ def display_validators():
                 <td>{{ epoch_first_block_height }}</td>
                 <td>{{ latest_block_height }}</td>
                 <td>{{ blocks_in_epoch }}</td>
-                <td>{{ epoch_start_human }}</td>
-                <td>{{ epoch_end_human }}</td>
+                <td class="local-time">{{ epoch_start_human }}</td>
+                <td class="local-time">{{ epoch_end_human }}</td>
             </tr>
         </table>
 
@@ -440,7 +443,7 @@ def display_validators():
         </table>
 
         <!-- Validators in Quorum Table -->
-        <table style="width: auto;">
+        <table style="width: 50%;">
             <tr>
                 <th style="width: calc(100% / 12);">#</th>
                 <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th>
@@ -452,6 +455,15 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
+
+        <!-- JavaScript to adjust timezones -->
+        <script>
+            document.querySelectorAll('.local-time').forEach(function(element) {
+                const utcTime = element.innerText;
+                const localTime = new Date(utcTime + ' UTC').toLocaleString('en-GB', { hour12: false });
+                element.innerText = localTime;
+            });
+        </script>
     </body>
     </html>
     """
