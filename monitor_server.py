@@ -138,6 +138,15 @@ def display_validators():
     epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000) + timedelta(days=9.125)
     epoch_end_human = epoch_end_time.strftime('%Y-%m-%d %H:%M:%S')
 
+    # Helper function to format ProTxHash to wrap into four lines
+    def format_protx(protx):
+        return '<br>'.join([protx[i:i+16] for i in range(0, len(protx), 16)])
+
+    # Determine the type (Evonode or Masternode)
+    def get_node_type(server):
+        platform_height = heartbeat_data[server].get('platformBlockHeight', 0)
+        return 'Evonode' if platform_height > 0 else 'Masternode'
+
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -227,9 +236,158 @@ def display_validators():
             </tr>
         </table>
 
-        <!-- Existing Validators Table -->
+        <!-- Detailed Node Table -->
         <table>
-            <!-- Existing content for validator details goes here -->
+            <tr class="header-row">
+                <td class="bold">Server Name</td>
+                {% for server in server_names %}
+                <td>{{ server }}</td>
+                {% endfor %}
+            </tr>
+            <!-- Type Row -->
+            <tr class="bold">
+                <td class="bold">Type</td>
+                {% for server in server_names %}
+                <td>{{ get_node_type(server) }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">uptime</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('uptime', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">uptimeInSeconds</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('uptimeInSeconds', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <!-- Core Row -->
+            <tr class="bold">
+                <td class="bold">Core</td>
+                {% for server in server_names %}
+                <td>Core</td>
+                {% endfor %}
+            </tr>
+            <!-- Reordered Rows -->
+            <tr>
+                <td class="bold">proTxHash</td>
+                {% for server in server_names %}
+                <td class="wrap">{{ format_protx(heartbeat_data[server].get('proTxHash', 'N/A')) | safe }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">blockHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('coreBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">paymentQueuePosition</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('paymentQueuePosition', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">nextPaymentTime</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('nextPaymentTime', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">lastPaidTime</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('lastPaidTime', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">poSePenalty</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('poSePenalty', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">poSeRevivedHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('poSeRevivedHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">poSeBanHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <!-- Platform Row -->
+            <tr class="bold">
+                <td class="bold">Platform</td>
+                {% for server in server_names %}
+                <td>Platform</td>
+                {% endfor %}
+            </tr>
+            <!-- Remaining Rows -->
+            <tr>
+                <td class="bold">blockHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('platformBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">p2pPortState</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">httpPortState</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('httpPortState', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">proposedBlocks</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('proposedBlockInCurrentEpoch', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">inQuorum</td>
+                {% for server in server_names %}
+                <td class="{{ 'green' if heartbeat_data[server].get('inQuorum', False) else '' }}">{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <!-- Additional Rows -->
+            <tr>
+                <td class="bold">balanceInCredits</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">balanceInDash</td>
+                {% for server in server_names %}
+                <td>{{ '{:.8f}'.format(convert_to_dash(heartbeat_data[server].get('balance', 0))) }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">produceBlockStatus</td>
+                {% for server in server_names %}
+                <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">lastProdHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('lastProduceBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">shouldProdHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('lastShouldProduceBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
         </table>
     </body>
     </html>
@@ -251,7 +409,11 @@ def display_validators():
         latest_block_height=latest_block_height,
         blocks_in_epoch=blocks_in_epoch,
         epoch_start_human=epoch_start_human,
-        epoch_end_human=epoch_end_human
+        epoch_end_human=epoch_end_human,
+        server_names=server_names,
+        heartbeat_data=heartbeat_data,
+        format_protx=format_protx,
+        get_node_type=get_node_type
     )
 
 if __name__ == '__main__':
