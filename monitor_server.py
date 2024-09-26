@@ -412,8 +412,8 @@ def display_validators():
         <!-- Validators in Quorum Table -->
         <table>
             <tr>
-                <th style="width: 8%;">#</th>
-                <th style="width: 32%;">Validators in Quorum</th>
+                <th style="width: calc(100% / 12);">#</th> <!-- First column width matches one column width of the second table -->
+                <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th> <!-- Second column width is four times the first column -->
             </tr>
             {% for validator in validators_in_quorum %}
             <tr>
