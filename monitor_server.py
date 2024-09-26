@@ -88,8 +88,8 @@ def convert_to_dash(credits):
     return credits / 100000000000
 
 def format_timestamp(timestamp):
-    """Convert a timestamp to a human-readable format."""
-    return datetime.fromtimestamp(int(timestamp) / 1000).strftime('%Y-%m-%d %H:%M:%S')
+    """Convert a timestamp to a shorter, human-readable format without the year."""
+    return datetime.fromtimestamp(int(timestamp) / 1000).strftime('%b %d %H:%M')
 
 @app.route('/', methods=['GET'])
 def display_validators():
@@ -136,7 +136,7 @@ def display_validators():
     share_proposed_blocks = (total_proposed_blocks / blocks_in_epoch) * 100 if blocks_in_epoch else 0
     epoch_start_human = format_timestamp(epoch_start_time)
     epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000) + timedelta(days=9.125)
-    epoch_end_human = epoch_end_time.strftime('%Y-%m-%d %H:%M:%S')
+    epoch_end_human = epoch_end_time.strftime('%b %d %H:%M')
 
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -162,6 +162,7 @@ def display_validators():
                 width: 100%;
                 border-collapse: collapse;
                 table-layout: fixed;
+                margin-bottom: 20px; /* Adds space between tables */
             }
             th, td {
                 padding: 8px 12px;
@@ -208,13 +209,13 @@ def display_validators():
                 <th>MN/eMN</th>
                 <th>ok/eMN</th>
                 <th>inQuorum/eMN</th>
-                <th>totalBalanceInCredits</th>
-                <th>totalBalanceInDash</th>
-                <th>totalProposedBlocks</th>
-                <th>shareProposedBlocks (%)</th>
+                <th>credits</th>
+                <th>Dash</th>
+                <th>totalBlocks</th>
+                <th>share</th>
                 <th>epochNumber</th>
-                <th>epochFirstBlockHeight</th>
-                <th>latestBlockHeight</th>
+                <th>firstBlock</th>
+                <th>latestBlock</th>
                 <th>blocksInEpoch</th>
                 <th>epochStartTime</th>
                 <th>epochEndTime</th>
@@ -226,7 +227,7 @@ def display_validators():
                 <td>{{ total_balance_credits }}</td>
                 <td>{{ '{:.8f}'.format(total_balance_dash) }}</td>
                 <td>{{ total_proposed_blocks }}</td>
-                <td>{{ '{:.2f}'.format(share_proposed_blocks) }}</td>
+                <td>{{ '{:.2f}'.format(share_proposed_blocks) }}%</td>
                 <td>{{ epoch_number }}</td>
                 <td>{{ epoch_first_block_height }}</td>
                 <td>{{ latest_block_height }}</td>
@@ -284,7 +285,7 @@ def display_validators():
                 {% endfor %}
             </tr>
             <tr>
-                <td class="bold">paymentQueuePosition</td>
+                <td class="bold">paymentPosition</td>
                 {% for server in server_names %}
                 <td>{{ heartbeat_data[server].get('paymentQueuePosition', 'N/A') }}</td>
                 {% endfor %}
