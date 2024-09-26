@@ -116,17 +116,43 @@ def display_validators():
         # Extract server names sorted alphabetically
         server_names = sorted(heartbeat_data.keys())
 
+        # Helper function to format ProTxHash to wrap into four lines
+        def format_protx(protx):
+            return '<br>'.join([protx[i:i+16] for i in range(0, len(protx), 16)])
+
         html_template = """
         <!DOCTYPE html>
         <html>
         <head>
             <title>Masternodes and Evonodes Monitor</title>
             <style>
-                table { width: 100%; border-collapse: collapse; }
-                th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: center; width: 100px; }
-                td.wrap { white-space: pre-wrap; word-wrap: break-word; } /* Allows ProTx to wrap */
-                th { background-color: #f4f4f4; }
-                .header-row td { font-weight: bold; }
+                body {
+                    background-color: black;
+                    color: #00FF00;
+                    font-family: 'Courier New', monospace;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed; /* Makes all columns fit on screen */
+                }
+                th, td {
+                    padding: 8px 12px;
+                    border: 1px solid #00FF00;
+                    text-align: center;
+                    overflow: hidden; /* Prevents overflow */
+                    white-space: nowrap; /* Ensures consistent column width */
+                }
+                td.wrap {
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                } /* Allows ProTx to wrap */
+                th {
+                    background-color: #002200;
+                }
+                .header-row td {
+                    font-weight: bold;
+                }
             </style>
         </head>
         <body>
@@ -136,7 +162,7 @@ def display_validators():
             <!-- Transposed Table Display -->
             <table>
                 <tr class="header-row">
-                    <td>Metric</td>
+                    <td>Server Name</td>
                     {% for server in server_names %}
                     <td>{{ server }}</td>
                     {% endfor %}
@@ -145,7 +171,13 @@ def display_validators():
                 <tr>
                     <td>{{ key }}</td>
                     {% for server in server_names %}
-                    <td class="{{ 'wrap' if key == 'proTxHash' else '' }}">{{ heartbeat_data[server].get(key, 'N/A') }}</td>
+                    <td class="{{ 'wrap' if key == 'proTxHash' else '' }}">
+                        {% if key == 'proTxHash' %}
+                            {{ format_protx(heartbeat_data[server].get(key, 'N/A')) | safe }}
+                        {% else %}
+                            {{ heartbeat_data[server].get(key, 'N/A') }}
+                        {% endif %}
+                    </td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
@@ -154,7 +186,7 @@ def display_validators():
         </html>
         """
         
-        return render_template_string(html_template, current_time=current_time, heartbeat_data=heartbeat_data, server_names=server_names)
+        return render_template_string(html_template, current_time=current_time, heartbeat_data=heartbeat_data, server_names=server_names, format_protx=format_protx)
     except Exception as e:
         logging.debug(f"Exception occurred in display_validators: {e}")
         return "An error occurred while processing your request.", 500
