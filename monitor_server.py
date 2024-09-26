@@ -22,49 +22,36 @@ heartbeat_data = {}
 
 # Ensure 'app_data' directory exists
 if not os.path.exists('app_data'):
-    logging.debug("Creating directory 'app_data'.")
     os.makedirs('app_data')
-else:
-    logging.debug("Directory 'app_data' already exists.")
 
 def load_from_file(filename):
     """Load data from a file, returning an empty dictionary if the file does not exist."""
     if not os.path.exists(filename):
-        logging.critical(f"File {filename} does not exist. Returning empty data.")
         return {}
 
     try:
         with open(filename, 'r') as f:
-            logging.debug(f"Loading data from file {filename}.")
-            data = json.load(f)
-            logging.debug(f"Data loaded successfully: {data}")
-            return data
-    except json.JSONDecodeError as e:
-        logging.critical(f"JSON decode error for file {filename}: {e}")
+            return json.load(f)
+    except json.JSONDecodeError:
         return {}
-    except Exception as e:
-        logging.critical(f"Error loading data from {filename}: {e}")
+    except Exception:
         return {}
 
 def save_to_file(data, filename):
     """Save data to a file and return JSON with the result status."""
     try:
         temp_filename = filename + ".tmp"
-        logging.debug(f"Attempting to save to temporary file {temp_filename}.")
 
         with open(temp_filename, 'w') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
         os.replace(temp_filename, filename)
-        logging.debug(f"Successfully saved data to {filename}.")
         return {"status": "success", "message": f"Data saved successfully to {filename}."}
         
-    except Exception as e:
-        logging.critical(f"Error saving data to {filename}: {e}")
-
+    except Exception:
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
-        return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
+        return {"status": "error", "message": f"Error saving data to {filename}."}
 
 def convert_to_dash(credits):
     """Convert credits to Dash."""
@@ -88,7 +75,6 @@ def time_ago_from(timestamp):
 def heartbeat():
     global heartbeat_data
     data = request.get_json()
-    logging.debug(f"Received heartbeat data: {data}")
 
     server_name = data.get('serverName')
     if server_name:
@@ -102,23 +88,20 @@ def heartbeat():
         status_code = 200 if result["status"] == "success" else 500
 
         # Return JSON response with detailed message about the file saving result
-        logging.debug(f"Heartbeat data processed with status: {result['status']}.")
         return jsonify(result), status_code
     else:
-        logging.debug("Invalid data format for heartbeat.")
         # Return error message if the input data format is invalid
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
 
 @app.route('/', methods=['GET'])
 def display_validators():
     global heartbeat_data
-    logging.debug("Loading heartbeat data from file.")
     heartbeat_data = load_from_file(HEARTBEAT_FILE)
 
     current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     server_names = sorted(heartbeat_data.keys())
 
-    # Aggregate data calculations
+    # Initialize aggregate data variables
     masternodes = 0
     evonodes = 0
     ok_evonodes = 0
@@ -126,10 +109,11 @@ def display_validators():
     total_balance_credits = 0
     total_proposed_blocks = 0
 
+    # Initialize variables to ensure they are always defined
     epoch_number = 0
     epoch_first_block_height = 0
     latest_block_height = 0
-    epoch_start_time = 0
+    epoch_start_time = 0  # Ensure this is always defined with a default value
 
     # Find the Evonode with the highest platform block height to fetch validatorsInQuorum
     highest_platform_block_height = 0
@@ -176,10 +160,6 @@ def display_validators():
 
     # Get the set of ProTxHashes in the second table to compare with validators in quorum
     protx_in_second_table = {heartbeat_data[server].get('proTxHash') for server in server_names}
-    
-    # Debugging: Print ProTxHashes from the second table and the quorum list
-    logging.debug(f"ProTxHashes in the second table: {protx_in_second_table}")
-    logging.debug(f"Validators in Quorum: {validators_in_quorum}")
 
     # Render HTML template
     html_template = """
