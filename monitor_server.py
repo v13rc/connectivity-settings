@@ -234,12 +234,15 @@ def display_validators():
             .highlight-latest {
                 background-color: #d4f4d2;
             }
+            meta[name="format-detection"] {
+                format-detection: none;
+            }
         </style>
         <meta name="format-detection" content="telephone=no">
     </head>
     <body>
         <h1>Masternodes and Evonodes Monitor</h1>
-        <p>Data fetched on: <span id="current-time">{{ current_time }}</span></p>
+        <p>Data fetched on: {{ current_time }}</p>
 
         <!-- Aggregate Data Table -->
         <table>
@@ -270,14 +273,163 @@ def display_validators():
                 <td>{{ epoch_first_block_height }}</td>
                 <td>{{ latest_block_height }}</td>
                 <td>{{ blocks_in_epoch }}</td>
-                <td data-timestamp="{{ epoch_start_time }}"></td>
-                <td data-timestamp="{{ (epoch_start_time + 9.125 * 86400000) }}"></td>
+                <td>{{ epoch_start_human }}</td>
+                <td>{{ epoch_end_human }}</td>
             </tr>
         </table>
 
         <!-- Detailed Node Table -->
         <table>
-            <!-- The second table structure as it was before -->
+            <tr class="header-row">
+                <td class="bold">Server Name</td>
+                {% for server in server_names %}
+                <td>{{ server }}</td>
+                {% endfor %}
+            </tr>
+            <tr class="bold">
+                <td class="bold">Type</td>
+                {% for server in server_names %}
+                <td>{{ get_node_type(server) }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">uptime</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('uptime', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">uptimeInSeconds</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('uptimeInSeconds', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">lastReportTime</td>
+                {% for server in server_names %}
+                <td>{{ time_ago_from(heartbeat_data[server].get('lastReportTime', 0)) }}</td>
+                {% endfor %}
+            </tr>
+            <tr class="bold">
+                <td class="bold">Core</td>
+                {% for server in server_names %}
+                <td>Core</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">proTxHash</td>
+                {% for server in server_names %}
+                <td class="wrap">{{ format_protx(heartbeat_data[server].get('proTxHash', 'N/A')) | safe }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">blockHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('coreBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">paymentPosition</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('paymentQueuePosition', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">nextPaymentTime</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('nextPaymentTime', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">lastPaidTime</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('lastPaidTime', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">poSePenalty</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('poSePenalty', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">poSeRevivedHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('poSeRevivedHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">poSeBanHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr class="bold">
+                <td class="bold">Platform</td>
+                {% for server in server_names %}
+                <td>Platform</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">blockHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('platformBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">p2pPortState</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">httpPortState</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('httpPortState', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">proposedBlocks</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('proposedBlockInCurrentEpoch', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">inQuorum</td>
+                {% for server in server_names %}
+                <td class="{{ 'green' if heartbeat_data[server].get('inQuorum', False) else '' }}">{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">balanceInCredits</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">balanceInDash</td>
+                {% for server in server_names %}
+                <td>{{ '{:.8f}'.format(convert_to_dash(heartbeat_data[server].get('balance', 0))) }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">produceBlockStatus</td>
+                {% for server in server_names %}
+                <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">lastProdHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('lastProduceBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">shouldProdHeight</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('lastShouldProduceBlockHeight', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
         </table>
 
         <!-- Validators in Quorum Table -->
@@ -293,17 +445,6 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
-
-        <!-- JavaScript to handle time conversion based on the browser's timezone -->
-        <script>
-            document.querySelectorAll('[data-timestamp]').forEach(el => {
-                const timestamp = parseInt(el.getAttribute('data-timestamp'));
-                if (!isNaN(timestamp)) {
-                    const date = new Date(timestamp);
-                    el.textContent = date.toLocaleString();
-                }
-            });
-        </script>
     </body>
     </html>
     """
@@ -324,6 +465,8 @@ def display_validators():
         epoch_first_block_height=epoch_first_block_height,
         latest_block_height=latest_block_height,
         blocks_in_epoch=blocks_in_epoch,
+        epoch_start_human=epoch_start_human,
+        epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
         validators_in_quorum=validators_in_quorum,
