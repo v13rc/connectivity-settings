@@ -315,6 +315,9 @@ def display_validators():
     </html>
     """
 
+    # Convert epoch_start_time to integer to ensure correct operations
+    epoch_start_time = int(server.get('epochStartTime', 0))
+    
     # Render the HTML template
     return render_template_string(
         html_template,
@@ -331,7 +334,7 @@ def display_validators():
         epoch_first_block_height=epoch_first_block_height,
         latest_block_height=latest_block_height,
         blocks_in_epoch=blocks_in_epoch,
-        epoch_start_time=epoch_start_time,  # Ensuring this variable is passed correctly
+        epoch_start_time=epoch_start_time,  # Ensure this is passed as an integer
         epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
