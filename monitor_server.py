@@ -1,6 +1,6 @@
 import os
 from flask import Flask, request, render_template_string, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import json
 
@@ -71,8 +71,18 @@ def convert_to_dash(credits):
     return credits / 100000000000
 
 def format_timestamp(timestamp):
-    """Convert a timestamp to a shorter, human-readable format without the year."""
-    return datetime.fromtimestamp(int(timestamp) / 1000).strftime('%b %d %H:%M')
+    """Convert a timestamp to a shorter, human-readable format in UTC+1."""
+    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc).astimezone(timezone(timedelta(hours=1)))
+    return dt.strftime('%b %d %H:%M')
+
+def time_ago_from(timestamp):
+    """Convert a timestamp to a format showing time elapsed since the timestamp."""
+    now = datetime.now(timezone.utc)
+    elapsed = now - datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    days = elapsed.days
+    hours, remainder = divmod(elapsed.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{days}d {hours}h {minutes}m {seconds}s"
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -82,6 +92,8 @@ def heartbeat():
 
     server_name = data.get('serverName')
     if server_name:
+        # Save the report time as a UTC timestamp
+        data['lastReportTime'] = datetime.now(timezone.utc).timestamp()
         heartbeat_data[server_name] = data
         # Save data to file and get the result
         result = save_to_file(heartbeat_data, HEARTBEAT_FILE)
@@ -103,7 +115,7 @@ def display_validators():
     logging.debug("Loading heartbeat data from file.")
     heartbeat_data = load_from_file(HEARTBEAT_FILE)
 
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_time = datetime.now().astimezone(timezone(timedelta(hours=1))).strftime("%Y-%m-%d %H:%M:%S")
     server_names = sorted(heartbeat_data.keys())
 
     # Aggregate data calculations
@@ -122,12 +134,14 @@ def display_validators():
     # Find the Evonode with the highest platform block height to fetch validatorsInQuorum
     highest_platform_block_height = 0
     validators_in_quorum = []
+    latest_block_validator = None
 
     for server, data in heartbeat_data.items():
         platform_block_height = data.get('platformBlockHeight', 0)
         if platform_block_height > highest_platform_block_height:
             highest_platform_block_height = platform_block_height
             validators_in_quorum = data.get('validatorsInQuorum', [])
+            latest_block_validator = data.get('latestBlockValidator', None)
 
     for server in heartbeat_data.values():
         is_evonode = server.get('platformBlockHeight', 0) > 0
@@ -151,8 +165,8 @@ def display_validators():
     blocks_in_epoch = latest_block_height - epoch_first_block_height
     share_proposed_blocks = (total_proposed_blocks / blocks_in_epoch) * 100 if blocks_in_epoch else 0
     epoch_start_human = format_timestamp(epoch_start_time)
-    epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000) + timedelta(days=9.125)
-    epoch_end_human = epoch_end_time.strftime('%b %d %H:%M')
+    epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000, tz=timezone.utc) + timedelta(days=9.125)
+    epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=1))).strftime('%b %d %H:%M')
 
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -216,6 +230,9 @@ def display_validators():
             .validator-in-quorum {
                 font-weight: bold;
                 color: green;
+            }
+            .highlight-latest {
+                background-color: #d4f4d2;
             }
             meta[name="format-detection"] {
                 format-detection: none;
@@ -285,6 +302,12 @@ def display_validators():
                 <td class="bold">uptimeInSeconds</td>
                 {% for server in server_names %}
                 <td>{{ heartbeat_data[server].get('uptimeInSeconds', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">lastReportTime</td>
+                {% for server in server_names %}
+                <td>{{ time_ago_from(heartbeat_data[server].get('lastReportTime', 0)) }}</td>
                 {% endfor %}
             </tr>
             <tr class="bold">
@@ -410,15 +433,15 @@ def display_validators():
         </table>
 
         <!-- Validators in Quorum Table -->
-        <table>
+        <table style="width: auto;">
             <tr>
-                <th style="width: calc(100% / 12);">#</th> <!-- First column width matches one column width of the second table -->
-                <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th> <!-- Second column width is four times the first column -->
+                <th style="width: calc(100% / 12);">#</th>
+                <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th>
             </tr>
             {% for validator in validators_in_quorum %}
             <tr>
                 <td>{{ loop.index }}</td>
-                <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }}">{{ validator }}</td>
+                <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -449,7 +472,9 @@ def display_validators():
         validators_in_quorum=validators_in_quorum,
         format_protx=format_protx,
         get_node_type=get_node_type,
-        convert_to_dash=convert_to_dash
+        convert_to_dash=convert_to_dash,
+        time_ago_from=time_ago_from,
+        latest_block_validator=latest_block_validator
     )
 
 if __name__ == '__main__':
