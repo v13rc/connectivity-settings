@@ -119,10 +119,15 @@ def display_validators():
     latest_block_height = 0
     epoch_start_time = 0
 
+    # Find the Evonode with the highest platform block height to fetch validatorsInQuorum
+    highest_platform_block_height = 0
     validators_in_quorum = []
+
     for server, data in heartbeat_data.items():
-        validators_in_quorum = data.get('validatorsInQuorum', [])
-        break  # Assuming all nodes share the same validators in quorum data
+        platform_block_height = data.get('platformBlockHeight', 0)
+        if platform_block_height > highest_platform_block_height:
+            highest_platform_block_height = platform_block_height
+            validators_in_quorum = data.get('validatorsInQuorum', [])
 
     for server in heartbeat_data.values():
         is_evonode = server.get('platformBlockHeight', 0) > 0
@@ -157,6 +162,9 @@ def display_validators():
     def get_node_type(server):
         platform_height = heartbeat_data[server].get('platformBlockHeight', 0)
         return 'Evonode' if platform_height > 0 else 'Masternode'
+
+    # Get the set of ProTxHashes in the second table to compare with validators in quorum
+    protx_in_second_table = {heartbeat_data[server].get('proTxHash') for server in server_names}
 
     # Render HTML template
     html_template = """
@@ -204,6 +212,10 @@ def display_validators():
             .light-green {
                 background-color: #d4f4d2;
                 font-weight: bold;
+            }
+            .validator-in-quorum {
+                font-weight: bold;
+                color: green;
             }
             meta[name="format-detection"] {
                 format-detection: none;
@@ -400,13 +412,13 @@ def display_validators():
         <!-- Validators in Quorum Table -->
         <table>
             <tr>
-                <th>#</th>
-                <th>Validators in Quorum</th>
+                <th style="width: 8%;">#</th>
+                <th style="width: 32%;">Validators in Quorum</th>
             </tr>
             {% for validator in validators_in_quorum %}
             <tr>
                 <td>{{ loop.index }}</td>
-                <td>{{ validator }}</td>
+                <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }}">{{ validator }}</td>
             </tr>
             {% endfor %}
         </table>
