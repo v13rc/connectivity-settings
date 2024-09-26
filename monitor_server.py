@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template_string, jsonify, request
+from flask import Flask, render_template_string
 from datetime import datetime, timedelta
 import logging
 import json
@@ -27,48 +27,11 @@ if not os.path.exists('app_data'):
 else:
     logging.debug("Directory 'app_data' already exists.")
 
-def ensure_directory_exists(path):
-    """Ensure the directory for the given path exists."""
-    directory = os.path.dirname(path)
-    if not os.path.exists(directory):
-        try:
-            logging.debug(f"Creating directory {directory}.")
-            os.makedirs(directory, exist_ok=True)
-        except Exception as e:
-            logging.critical(f"Could not create directory {directory}: {e}")
-            return False
-    return True
-
-def save_to_file(data, filename):
-    """Save data to a file and return JSON with the result status."""
-    if not ensure_directory_exists(filename):
-        error_msg = f"Directory does not exist and could not be created for {filename}."
-        logging.critical(error_msg)
-        return {"status": "error", "message": error_msg}
-
-    try:
-        temp_filename = filename + ".tmp"
-        logging.debug(f"Attempting to save to temporary file {temp_filename}.")
-
-        with open(temp_filename, 'w') as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-        
-        os.replace(temp_filename, filename)
-        logging.debug(f"Successfully saved data to {filename}.")
-        return {"status": "success", "message": f"Data saved successfully to {filename}."}
-        
-    except Exception as e:
-        logging.critical(f"Error saving data to {filename}: {e}")
-
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
-        return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
-
 def load_from_file(filename):
     """Load data from a file, returning an empty dictionary if the file does not exist."""
     if not os.path.exists(filename):
         logging.critical(f"File {filename} does not exist. Returning empty data.")
-        return {}  # Return an empty dictionary if the file does not exist
+        return {}
 
     try:
         with open(filename, 'r') as f:
@@ -78,10 +41,10 @@ def load_from_file(filename):
             return data
     except json.JSONDecodeError as e:
         logging.critical(f"JSON decode error for file {filename}: {e}")
-        return {}  # If JSON is invalid, return an empty dictionary
+        return {}
     except Exception as e:
         logging.critical(f"Error loading data from {filename}: {e}")
-        return {}  # If another error occurs, return an empty dictionary
+        return {}
 
 def convert_to_dash(credits):
     """Convert credits to Dash."""
@@ -159,6 +122,7 @@ def display_validators():
         platform_height = heartbeat_data[server].get('platformBlockHeight', 0)
         return 'Evonode' if platform_height > 0 else 'Masternode'
 
+    # Render HTML template
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -412,7 +376,7 @@ def display_validators():
             {% for index, validator in enumerate(validators_in_quorum, start=1) %}
             <tr>
                 <td>{{ index }}</td>
-                <td class="{% if validator == latest_block_validator %}light-green{% elif validator in [heartbeat_data[server].get('proTxHash') for server in server_names] %}green{% endif %}">
+                <td class="{% if validator == latest_block_validator %}light-green{% elif validator in heartbeat_data.values() | map(attribute='proTxHash') %}green{% endif %}">
                     {{ validator }}
                 </td>
             </tr>
