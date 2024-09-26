@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template_string
+from flask import Flask, request, render_template_string, jsonify
 from datetime import datetime, timedelta
 import logging
 import json
@@ -46,6 +46,26 @@ def load_from_file(filename):
         logging.critical(f"Error loading data from {filename}: {e}")
         return {}
 
+def save_to_file(data, filename):
+    """Save data to a file and return JSON with the result status."""
+    try:
+        temp_filename = filename + ".tmp"
+        logging.debug(f"Attempting to save to temporary file {temp_filename}.")
+
+        with open(temp_filename, 'w') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+
+        os.replace(temp_filename, filename)
+        logging.debug(f"Successfully saved data to {filename}.")
+        return {"status": "success", "message": f"Data saved successfully to {filename}."}
+        
+    except Exception as e:
+        logging.critical(f"Error saving data to {filename}: {e}")
+
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+        return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
+
 def convert_to_dash(credits):
     """Convert credits to Dash."""
     return credits / 100000000000
@@ -53,6 +73,29 @@ def convert_to_dash(credits):
 def format_timestamp(timestamp):
     """Convert a timestamp to a shorter, human-readable format without the year."""
     return datetime.fromtimestamp(int(timestamp) / 1000).strftime('%b %d %H:%M')
+
+@app.route('/heartbeat', methods=['POST'])
+def heartbeat():
+    global heartbeat_data
+    data = request.get_json()
+    logging.debug(f"Received heartbeat data: {data}")
+
+    server_name = data.get('serverName')
+    if server_name:
+        heartbeat_data[server_name] = data
+        # Save data to file and get the result
+        result = save_to_file(heartbeat_data, HEARTBEAT_FILE)
+
+        # Determine the HTTP status code based on the result of file saving
+        status_code = 200 if result["status"] == "success" else 500
+
+        # Return JSON response with detailed message about the file saving result
+        logging.debug(f"Heartbeat data processed with status: {result['status']}.")
+        return jsonify(result), status_code
+    else:
+        logging.debug("Invalid data format for heartbeat.")
+        # Return error message if the input data format is invalid
+        return jsonify({"status": "error", "message": "Invalid data format."}), 400
 
 @app.route('/', methods=['GET'])
 def display_validators():
