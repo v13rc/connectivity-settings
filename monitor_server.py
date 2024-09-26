@@ -71,9 +71,9 @@ def convert_to_dash(credits):
     return credits / 100000000000
 
 def format_timestamp(timestamp):
-    """Convert a timestamp to a shorter, human-readable format in UTC+1."""
-    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc).astimezone(timezone(timedelta(hours=1)))
-    return dt.strftime('%b %d %H:%M')
+    """Convert a timestamp to a shorter, human-readable format."""
+    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
+    return dt.isoformat()
 
 def time_ago_from(timestamp):
     """Convert a timestamp to a format showing time elapsed since the timestamp."""
@@ -115,7 +115,7 @@ def display_validators():
     logging.debug("Loading heartbeat data from file.")
     heartbeat_data = load_from_file(HEARTBEAT_FILE)
 
-    current_time = datetime.now().astimezone(timezone(timedelta(hours=1))).strftime("%Y-%m-%d %H:%M:%S")
+    current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     server_names = sorted(heartbeat_data.keys())
 
     # Aggregate data calculations
@@ -164,9 +164,6 @@ def display_validators():
     total_balance_dash = convert_to_dash(total_balance_credits)
     blocks_in_epoch = latest_block_height - epoch_first_block_height
     share_proposed_blocks = (total_proposed_blocks / blocks_in_epoch) * 100 if blocks_in_epoch else 0
-    epoch_start_human = format_timestamp(epoch_start_time)
-    epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000, tz=timezone.utc) + timedelta(days=9.125)
-    epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=1))).strftime('%b %d %H:%M')
 
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -179,6 +176,10 @@ def display_validators():
 
     # Get the set of ProTxHashes in the second table to compare with validators in quorum
     protx_in_second_table = {heartbeat_data[server].get('proTxHash') for server in server_names}
+    
+    # Debugging: Print ProTxHashes from the second table and the quorum list
+    logging.debug(f"ProTxHashes in the second table: {protx_in_second_table}")
+    logging.debug(f"Validators in Quorum: {validators_in_quorum}")
 
     # Render HTML template
     html_template = """
@@ -242,7 +243,28 @@ def display_validators():
     </head>
     <body>
         <h1>Masternodes and Evonodes Monitor</h1>
-        <p>Data fetched on: {{ current_time }}</p>
+        <p>Data fetched on: <span id="current_time">{{ current_time }}</span></p>
+
+        <!-- JavaScript for adjusting time zone display -->
+        <script>
+            function adjustTimeZone() {
+                // Get elements with timestamps
+                const timeElements = document.querySelectorAll('[data-timestamp]');
+                timeElements.forEach(element => {
+                    const utcTime = new Date(parseInt(element.dataset.timestamp));
+                    const localTime = utcTime.toLocaleString('en-US', { timeZoneName: 'short' });
+                    element.innerText = localTime;
+                });
+
+                // Update the display of the current time
+                const currentTimeElement = document.getElementById('current_time');
+                const currentTime = new Date(currentTimeElement.textContent + 'Z');
+                currentTimeElement.textContent = currentTime.toLocaleString('en-US', { timeZoneName: 'short' });
+            }
+
+            // Adjust time zone after page loads
+            window.onload = adjustTimeZone;
+        </script>
 
         <!-- Aggregate Data Table -->
         <table>
@@ -273,8 +295,8 @@ def display_validators():
                 <td>{{ epoch_first_block_height }}</td>
                 <td>{{ latest_block_height }}</td>
                 <td>{{ blocks_in_epoch }}</td>
-                <td>{{ epoch_start_human }}</td>
-                <td>{{ epoch_end_human }}</td>
+                <td><span data-timestamp="{{ epoch_start_time }}"></span></td>
+                <td><span data-timestamp="{{ (epoch_start_time + 9.125 * 86400000) }}"></span></td>
             </tr>
         </table>
 
@@ -465,8 +487,6 @@ def display_validators():
         epoch_first_block_height=epoch_first_block_height,
         latest_block_height=latest_block_height,
         blocks_in_epoch=blocks_in_epoch,
-        epoch_start_human=epoch_start_human,
-        epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
         validators_in_quorum=validators_in_quorum,
