@@ -27,7 +27,6 @@ if not os.path.exists('app_data'):
 else:
     logging.debug("Directory 'app_data' already exists.")
 
-
 def load_from_file(filename):
     """Load data from a file, returning an empty dictionary if the file does not exist."""
     if not os.path.exists(filename):
@@ -47,7 +46,6 @@ def load_from_file(filename):
         logging.critical(f"Error loading data from {filename}: {e}")
         return {}
 
-
 def save_to_file(data, filename):
     """Save data to a file and return JSON with the result status."""
     try:
@@ -60,7 +58,7 @@ def save_to_file(data, filename):
         os.replace(temp_filename, filename)
         logging.debug(f"Successfully saved data to {filename}.")
         return {"status": "success", "message": f"Data saved successfully to {filename}."}
-
+        
     except Exception as e:
         logging.critical(f"Error saving data to {filename}: {e}")
 
@@ -68,27 +66,16 @@ def save_to_file(data, filename):
             os.remove(temp_filename)
         return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
 
-
 def convert_to_dash(credits):
     """Convert credits to Dash."""
     return credits / 100000000000
-
-
-def format_timestamp(timestamp):
-    """Convert a timestamp to a shorter, human-readable format."""
-    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
-    return dt.strftime('%b %d %H:%M')
-
 
 def time_ago_from(timestamp):
     """Convert a timestamp to a format showing time elapsed since the timestamp."""
     now = datetime.now(timezone.utc)
     elapsed = now - datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    days = elapsed.days
-    hours, remainder = divmod(elapsed.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{days}d {hours}h {minutes}m {seconds}s"
-
+    minutes, seconds = divmod(elapsed.total_seconds(), 60)
+    return f"{int(minutes)}m {int(seconds)}s"
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -114,7 +101,6 @@ def heartbeat():
         logging.debug("Invalid data format for heartbeat.")
         # Return error message if the input data format is invalid
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
-
 
 @app.route('/', methods=['GET'])
 def display_validators():
@@ -171,9 +157,6 @@ def display_validators():
     total_balance_dash = convert_to_dash(total_balance_credits)
     blocks_in_epoch = latest_block_height - epoch_first_block_height
     share_proposed_blocks = (total_proposed_blocks / blocks_in_epoch) * 100 if blocks_in_epoch else 0
-    epoch_start_human = format_timestamp(epoch_start_time)
-    epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000, tz=timezone.utc) + timedelta(days=9.125)
-    epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=1))).strftime('%b %d %H:%M')
 
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -230,19 +213,12 @@ def display_validators():
                 color: green;
                 font-weight: bold;
             }
-            .light-green {
-                background-color: #d4f4d2;
+            .red {
+                color: red;
                 font-weight: bold;
-            }
-            .validator-in-quorum {
-                font-weight: bold;
-                color: green;
             }
             .highlight-latest {
                 background-color: #d4f4d2;
-            }
-            .hidden {
-                display: none;
             }
             meta[name="format-detection"] {
                 format-detection: none;
@@ -252,7 +228,7 @@ def display_validators():
     </head>
     <body>
         <h1>Masternodes and Evonodes Monitor</h1>
-        <p>Data fetched on: <span class="local-time">{{ current_time }}</span></p>
+        <p>Data fetched on: {{ current_time }}</p>
 
         <!-- Aggregate Data Table -->
         <table>
@@ -268,8 +244,6 @@ def display_validators():
                 <th>firstBlock</th>
                 <th>latestBlock</th>
                 <th>blocksInEpoch</th>
-                <th>epochStartTime</th>
-                <th>epochEndTime</th>
             </tr>
             <tr>
                 <td>{{ masternodes }}/{{ evonodes }}</td>
@@ -283,8 +257,6 @@ def display_validators():
                 <td>{{ epoch_first_block_height }}</td>
                 <td>{{ latest_block_height }}</td>
                 <td>{{ blocks_in_epoch }}</td>
-                <td class="local-time">{{ epoch_start_human }}</td>
-                <td class="local-time">{{ epoch_end_human }}</td>
             </tr>
         </table>
 
@@ -309,15 +281,9 @@ def display_validators():
                 {% endfor %}
             </tr>
             <tr>
-                <td class="bold">uptimeInSeconds</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('uptimeInSeconds', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
                 <td class="bold">lastReportTime</td>
                 {% for server in server_names %}
-                <td>{{ time_ago_from(heartbeat_data[server].get('lastReportTime', 0)) }}</td>
+                <td class="{{ 'red' if time_ago_from(heartbeat_data[server].get('lastReportTime', 0)).startswith('3') else '' }}">{{ time_ago_from(heartbeat_data[server].get('lastReportTime', 0)) }}</td>
                 {% endfor %}
             </tr>
             <tr class="bold">
@@ -445,13 +411,13 @@ def display_validators():
         <!-- Validators in Quorum Table -->
         <table style="width: 50%;">
             <tr>
-                <th style="width: calc(100% / 12);">#</th>
-                <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th>
+                <th style="width: 25%;">#</th>
+                <th style="width: 75%;">Validators in Quorum</th>
             </tr>
             {% for validator in validators_in_quorum %}
             <tr>
                 <td>{{ loop.index }}</td>
-                <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
+                <td class="{{ 'bold green' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -484,8 +450,6 @@ def display_validators():
         epoch_first_block_height=epoch_first_block_height,
         latest_block_height=latest_block_height,
         blocks_in_epoch=blocks_in_epoch,
-        epoch_start_human=epoch_start_human,
-        epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
         validators_in_quorum=validators_in_quorum,
@@ -495,7 +459,6 @@ def display_validators():
         time_ago_from=time_ago_from,
         latest_block_validator=latest_block_validator
     )
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
