@@ -331,6 +331,8 @@ def display_validators():
         epoch_first_block_height=epoch_first_block_height,
         latest_block_height=latest_block_height,
         blocks_in_epoch=blocks_in_epoch,
+        epoch_start_time=epoch_start_time,  # Ensuring this variable is passed correctly
+        epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
         validators_in_quorum=validators_in_quorum,
