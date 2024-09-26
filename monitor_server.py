@@ -113,6 +113,18 @@ def display_validators():
     latest_block_height = 0
     epoch_start_time = 0
 
+    # Finding the Evonode with the highest platformBlockHeight
+    highest_platform_block_height = 0
+    validators_in_quorum = []
+    latest_block_validator = ""
+
+    for server, data in heartbeat_data.items():
+        platform_height = data.get('platformBlockHeight', 0)
+        if platform_height > highest_platform_block_height:
+            highest_platform_block_height = platform_height
+            validators_in_quorum = data.get('validatorsInQuorum', [])
+            latest_block_validator = data.get('latestBlockValidator', "")
+
     for server in heartbeat_data.values():
         is_evonode = server.get('platformBlockHeight', 0) > 0
         masternodes += not is_evonode
@@ -189,8 +201,8 @@ def display_validators():
                 color: green;
                 font-weight: bold;
             }
-            .red {
-                color: red;
+            .light-green {
+                background-color: #d4f4d2;
                 font-weight: bold;
             }
             meta[name="format-detection"] {
@@ -390,6 +402,22 @@ def display_validators():
                 {% endfor %}
             </tr>
         </table>
+
+        <!-- Validators in Quorum Table -->
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Validators in Quorum</th>
+            </tr>
+            {% for index, validator in enumerate(validators_in_quorum, start=1) %}
+            <tr>
+                <td>{{ index }}</td>
+                <td class="{% if validator == latest_block_validator %}light-green{% elif validator in [heartbeat_data[server].get('proTxHash') for server in server_names] %}green{% endif %}">
+                    {{ validator }}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
     </body>
     </html>
     """
@@ -413,6 +441,8 @@ def display_validators():
         epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
+        validators_in_quorum=validators_in_quorum,
+        latest_block_validator=latest_block_validator,
         format_protx=format_protx,
         get_node_type=get_node_type,
         convert_to_dash=convert_to_dash  # Ensure this function is passed correctly
