@@ -73,7 +73,11 @@ def load_from_file(filename):
     try:
         with open(filename, 'r') as f:
             logging.debug(f"Loading data from file {filename}.")
-            return json.load(f)
+            data = json.load(f)
+            # Read additional data but do not display it
+            additional_data = data.get('additional_data', {})
+            logging.debug(f"Read additional data: {additional_data}")
+            return data
     except json.JSONDecodeError as e:
         logging.critical(f"JSON decode error for file {filename}: {e}")
         return {}  # If JSON is invalid, return an empty dictionary
@@ -132,7 +136,7 @@ def display_validators():
             <title>Masternodes and Evonodes Monitor</title>
             <style>
                 body {
-                    background-color: #f4f4f9;
+                    background-color: #ffffff;
                     color: #333;
                     font-family: 'Courier New', monospace;
                 }
@@ -143,7 +147,7 @@ def display_validators():
                 }
                 th, td {
                     padding: 8px 12px;
-                    border: 1px solid #ccc;
+                    border: 1px solid #ddd;
                     text-align: center;
                     overflow: hidden; /* Prevents overflow */
                     white-space: nowrap; /* Ensures consistent column width */
@@ -153,9 +157,12 @@ def display_validators():
                     word-wrap: break-word;
                 } /* Allows ProTx to wrap */
                 th {
-                    background-color: #e0e0e0;
+                    background-color: #f2f2f2;
                 }
                 .header-row td {
+                    font-weight: bold;
+                }
+                .bold {
                     font-weight: bold;
                 }
             </style>
@@ -167,120 +174,120 @@ def display_validators():
             <!-- Transposed Table Display -->
             <table>
                 <tr class="header-row">
-                    <td>Server Name</td>
+                    <td class="bold">Server Name</td>
                     {% for server in server_names %}
                     <td>{{ server }}</td>
                     {% endfor %}
                 </tr>
                 <!-- Type Row -->
-                <tr>
-                    <td>Type</td>
+                <tr class="bold">
+                    <td class="bold">Type</td>
                     {% for server in server_names %}
                     <td>{{ get_node_type(server) }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>uptime</td>
+                    <td class="bold">uptime</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('uptime', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>uptimeInSeconds</td>
+                    <td class="bold">uptimeInSeconds</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('uptimeInSeconds', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <!-- Core Row -->
-                <tr>
-                    <td>Core</td>
+                <tr class="bold">
+                    <td class="bold">Core</td>
                     {% for server in server_names %}
                     <td>Core</td>
                     {% endfor %}
                 </tr>
                 <!-- Reordered Rows -->
                 <tr>
-                    <td>proTxHash</td>
+                    <td class="bold">proTxHash</td>
                     {% for server in server_names %}
                     <td class="wrap">{{ format_protx(heartbeat_data[server].get('proTxHash', 'N/A')) | safe }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>coreBlockHeight</td>
+                    <td class="bold">blockHeight</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('coreBlockHeight', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>paymentQueuePosition</td>
+                    <td class="bold">paymentQueuePosition</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('paymentQueuePosition', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>nextPaymentTime</td>
+                    <td class="bold">nextPaymentTime</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('nextPaymentTime', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>lastPaidTime</td>
+                    <td class="bold">lastPaidTime</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('lastPaidTime', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>poSePenalty</td>
+                    <td class="bold">poSePenalty</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('poSePenalty', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>poSeRevivedHeight</td>
+                    <td class="bold">poSeRevivedHeight</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('poSeRevivedHeight', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>poSeBanHeight</td>
+                    <td class="bold">poSeBanHeight</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <!-- Platform Row -->
-                <tr>
-                    <td>Platform</td>
+                <tr class="bold">
+                    <td class="bold">Platform</td>
                     {% for server in server_names %}
                     <td>Platform</td>
                     {% endfor %}
                 </tr>
                 <!-- Remaining Rows -->
                 <tr>
-                    <td>platformBlockHeight</td>
+                    <td class="bold">blockHeight</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('platformBlockHeight', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>p2pPortState</td>
+                    <td class="bold">p2pPortState</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>httpPortState</td>
+                    <td class="bold">httpPortState</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('httpPortState', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>proposedBlockInCurrentEpoch</td>
+                    <td class="bold">proposedBlocks</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('proposedBlockInCurrentEpoch', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td>inQuorum</td>
+                    <td class="bold">inQuorum</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
                     {% endfor %}
