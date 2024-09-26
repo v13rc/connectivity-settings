@@ -129,7 +129,7 @@ def display_validators():
     epoch_number = 0
     epoch_first_block_height = 0
     latest_block_height = 0
-    epoch_start_time = 0
+    epoch_start_time = None  # Ensure epoch_start_time is initialized
 
     # Find the Evonode with the highest platform block height to fetch validatorsInQuorum
     highest_platform_block_height = 0
@@ -160,6 +160,10 @@ def display_validators():
             epoch_first_block_height = int(server.get('epochFirstBlockHeight', epoch_first_block_height))
             latest_block_height = int(server.get('latestBlockHeight', latest_block_height))
             epoch_start_time = server.get('epochStartTime', epoch_start_time)
+
+    # Ensure epoch_start_time has a default value if still None
+    if epoch_start_time is None:
+        epoch_start_time = 0
 
     total_balance_dash = convert_to_dash(total_balance_credits)
     blocks_in_epoch = latest_block_height - epoch_first_block_height
@@ -233,6 +237,9 @@ def display_validators():
             }
             .highlight-latest {
                 background-color: #d4f4d2;
+            }
+            meta[name="format-detection"] {
+                format-detection: none;
             }
         </style>
         <meta name="format-detection" content="telephone=no">
