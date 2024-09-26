@@ -459,7 +459,7 @@ def display_validators():
     </html>
     """
 
-    # Render the HTML template
+    # Updated render_template_string call to include 'int' in the context
     return render_template_string(
         html_template,
         current_time=current_time,
@@ -484,9 +484,9 @@ def display_validators():
         get_node_type=get_node_type,
         convert_to_dash=convert_to_dash,
         time_ago_from=time_ago_from,
-        latest_block_validator=latest_block_validator
+        latest_block_validator=latest_block_validator,
+        int=int  # Adding int function to the template context
     )
-
 
 if __name__ == '__main__': 
     app.run(host='0.0.0.0', port=8080)
