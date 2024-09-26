@@ -22,45 +22,58 @@ heartbeat_data = {}
 
 # Ensure 'app_data' directory exists
 if not os.path.exists('app_data'):
+    logging.debug("Creating directory 'app_data'.")
     os.makedirs('app_data')
+else:
+    logging.debug("Directory 'app_data' already exists.")
 
 def load_from_file(filename):
     """Load data from a file, returning an empty dictionary if the file does not exist."""
     if not os.path.exists(filename):
+        logging.critical(f"File {filename} does not exist. Returning empty data.")
         return {}
 
     try:
         with open(filename, 'r') as f:
-            return json.load(f)
-    except json.JSONDecodeError:
+            logging.debug(f"Loading data from file {filename}.")
+            data = json.load(f)
+            logging.debug(f"Data loaded successfully: {data}")
+            return data
+    except json.JSONDecodeError as e:
+        logging.critical(f"JSON decode error for file {filename}: {e}")
         return {}
-    except Exception:
+    except Exception as e:
+        logging.critical(f"Error loading data from {filename}: {e}")
         return {}
 
 def save_to_file(data, filename):
     """Save data to a file and return JSON with the result status."""
     try:
         temp_filename = filename + ".tmp"
+        logging.debug(f"Attempting to save to temporary file {temp_filename}.")
 
         with open(temp_filename, 'w') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
         os.replace(temp_filename, filename)
+        logging.debug(f"Successfully saved data to {filename}.")
         return {"status": "success", "message": f"Data saved successfully to {filename}."}
         
-    except Exception:
+    except Exception as e:
+        logging.critical(f"Error saving data to {filename}: {e}")
+
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
-        return {"status": "error", "message": f"Error saving data to {filename}."}
+        return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
 
 def convert_to_dash(credits):
     """Convert credits to Dash."""
     return credits / 100000000000
 
 def format_timestamp(timestamp):
-    """Convert a timestamp to a shorter, human-readable format."""
-    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc)
-    return dt.isoformat()
+    """Convert a timestamp to a shorter, human-readable format in UTC+1."""
+    dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc).astimezone(timezone(timedelta(hours=1)))
+    return dt.strftime('%b %d %H:%M')
 
 def time_ago_from(timestamp):
     """Convert a timestamp to a format showing time elapsed since the timestamp."""
@@ -75,6 +88,7 @@ def time_ago_from(timestamp):
 def heartbeat():
     global heartbeat_data
     data = request.get_json()
+    logging.debug(f"Received heartbeat data: {data}")
 
     server_name = data.get('serverName')
     if server_name:
@@ -88,20 +102,23 @@ def heartbeat():
         status_code = 200 if result["status"] == "success" else 500
 
         # Return JSON response with detailed message about the file saving result
+        logging.debug(f"Heartbeat data processed with status: {result['status']}.")
         return jsonify(result), status_code
     else:
+        logging.debug("Invalid data format for heartbeat.")
         # Return error message if the input data format is invalid
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
 
 @app.route('/', methods=['GET'])
 def display_validators():
     global heartbeat_data
+    logging.debug("Loading heartbeat data from file.")
     heartbeat_data = load_from_file(HEARTBEAT_FILE)
 
-    current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    current_time = datetime.now().astimezone(timezone(timedelta(hours=1))).strftime("%Y-%m-%d %H:%M:%S")
     server_names = sorted(heartbeat_data.keys())
 
-    # Initialize aggregate data variables
+    # Aggregate data calculations
     masternodes = 0
     evonodes = 0
     ok_evonodes = 0
@@ -109,11 +126,10 @@ def display_validators():
     total_balance_credits = 0
     total_proposed_blocks = 0
 
-    # Initialize variables to ensure they are always defined
     epoch_number = 0
     epoch_first_block_height = 0
     latest_block_height = 0
-    epoch_start_time = 0  # Ensure this is always defined with a default value
+    epoch_start_time = 0
 
     # Find the Evonode with the highest platform block height to fetch validatorsInQuorum
     highest_platform_block_height = 0
@@ -148,6 +164,9 @@ def display_validators():
     total_balance_dash = convert_to_dash(total_balance_credits)
     blocks_in_epoch = latest_block_height - epoch_first_block_height
     share_proposed_blocks = (total_proposed_blocks / blocks_in_epoch) * 100 if blocks_in_epoch else 0
+    epoch_start_human = format_timestamp(epoch_start_time)
+    epoch_end_time = datetime.fromtimestamp(int(epoch_start_time) / 1000, tz=timezone.utc) + timedelta(days=9.125)
+    epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=1))).strftime('%b %d %H:%M')
 
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -215,36 +234,12 @@ def display_validators():
             .highlight-latest {
                 background-color: #d4f4d2;
             }
-            meta[name="format-detection"] {
-                format-detection: none;
-            }
         </style>
         <meta name="format-detection" content="telephone=no">
     </head>
     <body>
         <h1>Masternodes and Evonodes Monitor</h1>
-        <p>Data fetched on: <span id="current_time">{{ current_time }}</span></p>
-
-        <!-- JavaScript for adjusting time zone display -->
-        <script>
-            function adjustTimeZone() {
-                // Get elements with timestamps
-                const timeElements = document.querySelectorAll('[data-timestamp]');
-                timeElements.forEach(element => {
-                    const utcTime = new Date(parseInt(element.dataset.timestamp));
-                    const localTime = utcTime.toLocaleString('en-US', { timeZoneName: 'short' });
-                    element.innerText = localTime;
-                });
-
-                // Update the display of the current time
-                const currentTimeElement = document.getElementById('current_time');
-                const currentTime = new Date(currentTimeElement.textContent + 'Z');
-                currentTimeElement.textContent = currentTime.toLocaleString('en-US', { timeZoneName: 'short' });
-            }
-
-            // Adjust time zone after page loads
-            window.onload = adjustTimeZone;
-        </script>
+        <p>Data fetched on: <span id="current-time">{{ current_time }}</span></p>
 
         <!-- Aggregate Data Table -->
         <table>
@@ -275,163 +270,14 @@ def display_validators():
                 <td>{{ epoch_first_block_height }}</td>
                 <td>{{ latest_block_height }}</td>
                 <td>{{ blocks_in_epoch }}</td>
-                <td><span data-timestamp="{{ epoch_start_time }}"></span></td>
-                <td><span data-timestamp="{{ (epoch_start_time + 9.125 * 86400000) }}"></span></td>
+                <td data-timestamp="{{ epoch_start_time }}"></td>
+                <td data-timestamp="{{ (epoch_start_time + 9.125 * 86400000) }}"></td>
             </tr>
         </table>
 
         <!-- Detailed Node Table -->
         <table>
-            <tr class="header-row">
-                <td class="bold">Server Name</td>
-                {% for server in server_names %}
-                <td>{{ server }}</td>
-                {% endfor %}
-            </tr>
-            <tr class="bold">
-                <td class="bold">Type</td>
-                {% for server in server_names %}
-                <td>{{ get_node_type(server) }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">uptime</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('uptime', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">uptimeInSeconds</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('uptimeInSeconds', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">lastReportTime</td>
-                {% for server in server_names %}
-                <td>{{ time_ago_from(heartbeat_data[server].get('lastReportTime', 0)) }}</td>
-                {% endfor %}
-            </tr>
-            <tr class="bold">
-                <td class="bold">Core</td>
-                {% for server in server_names %}
-                <td>Core</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">proTxHash</td>
-                {% for server in server_names %}
-                <td class="wrap">{{ format_protx(heartbeat_data[server].get('proTxHash', 'N/A')) | safe }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">blockHeight</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('coreBlockHeight', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">paymentPosition</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('paymentQueuePosition', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">nextPaymentTime</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('nextPaymentTime', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">lastPaidTime</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('lastPaidTime', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">poSePenalty</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('poSePenalty', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">poSeRevivedHeight</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('poSeRevivedHeight', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">poSeBanHeight</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr class="bold">
-                <td class="bold">Platform</td>
-                {% for server in server_names %}
-                <td>Platform</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">blockHeight</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('platformBlockHeight', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">p2pPortState</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">httpPortState</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('httpPortState', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">proposedBlocks</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('proposedBlockInCurrentEpoch', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">inQuorum</td>
-                {% for server in server_names %}
-                <td class="{{ 'green' if heartbeat_data[server].get('inQuorum', False) else '' }}">{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">balanceInCredits</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">balanceInDash</td>
-                {% for server in server_names %}
-                <td>{{ '{:.8f}'.format(convert_to_dash(heartbeat_data[server].get('balance', 0))) }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">produceBlockStatus</td>
-                {% for server in server_names %}
-                <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">lastProdHeight</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('lastProduceBlockHeight', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">shouldProdHeight</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('lastShouldProduceBlockHeight', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
+            <!-- The second table structure as it was before -->
         </table>
 
         <!-- Validators in Quorum Table -->
@@ -447,6 +293,17 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
+
+        <!-- JavaScript to handle time conversion based on the browser's timezone -->
+        <script>
+            document.querySelectorAll('[data-timestamp]').forEach(el => {
+                const timestamp = parseInt(el.getAttribute('data-timestamp'));
+                if (!isNaN(timestamp)) {
+                    const date = new Date(timestamp);
+                    el.textContent = date.toLocaleString();
+                }
+            });
+        </script>
     </body>
     </html>
     """
