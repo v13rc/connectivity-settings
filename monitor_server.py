@@ -481,9 +481,9 @@ def display_validators():
         get_node_type=get_node_type,
         convert_to_dash=convert_to_dash,
         time_ago_from_minutes_seconds=time_ago_from_minutes_seconds,
-        latest_block_validator=latest_block_validator
+        latest_block_validator=latest_block_validator,
+        protx_in_second_table=protx_in_second_table  # Dodane przekazanie zmiennej
     )
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
