@@ -6,21 +6,21 @@ import json
 
 # Logger configuration - logging debug information for detailed logs
 logging.basicConfig(
-    level=logging.DEBUG,  # Ustawiono na DEBUG, aby uzyskać szczegółowe logi
+    level=logging.DEBUG,  # Set to DEBUG to get detailed logs
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler()  # Loguj na konsolę
+        logging.StreamHandler()  # Log to the console
     ]
 )
 
-# Ścieżki do plików
+# Paths to files
 HEARTBEAT_FILE = 'app_data/heartbeat_data.json'
 
 app = Flask(__name__)
 
 heartbeat_data = {}
 
-# Upewnij się, że katalog 'app_data' istnieje
+# Ensure the 'app_data' directory exists
 if not os.path.exists('app_data'):
     logging.debug("Creating directory 'app_data'.")
     os.makedirs('app_data')
@@ -68,7 +68,7 @@ def load_from_file(filename):
     """Load data from a file, returning an empty dictionary if the file does not exist."""
     if not os.path.exists(filename):
         logging.critical(f"File {filename} does not exist. Returning empty data.")
-        return {}  # Zwróć pusty słownik, jeśli plik nie istnieje
+        return {}  # Return an empty dictionary if the file does not exist
 
     try:
         with open(filename, 'r') as f:
@@ -76,10 +76,10 @@ def load_from_file(filename):
             return json.load(f)
     except json.JSONDecodeError as e:
         logging.critical(f"JSON decode error for file {filename}: {e}")
-        return {}  # Jeśli JSON jest nieprawidłowy, zwróć pusty słownik
+        return {}  # If JSON is invalid, return an empty dictionary
     except Exception as e:
         logging.critical(f"Error loading data from {filename}: {e}")
-        return {}  # Jeśli inny błąd, zwróć pusty słownik
+        return {}  # If another error occurs, return an empty dictionary
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -113,71 +113,40 @@ def display_validators():
 
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Extract server names sorted alphabetically
+        server_names = sorted(heartbeat_data.keys())
+
         html_template = """
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Dash Validators</title>
+            <title>Masternodes and Evonodes Monitor</title>
             <style>
                 table { width: 100%; border-collapse: collapse; }
-                th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: center; }
-                tr:nth-child(even) { background-color: #f2f2f2; }
-                .not-found { color: red; }
+                th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: center; width: 100px; }
+                td.wrap { white-space: pre-wrap; word-wrap: break-word; } /* Allows ProTx to wrap */
+                th { background-color: #f4f4f4; }
+                .header-row td { font-weight: bold; }
             </style>
         </head>
         <body>
-            <h1>Dash Validators Information</h1>
+            <h1>Masternodes and Evonodes Monitor</h1>
             <p>Data fetched on: {{ current_time }}</p>
             
-            <!-- Display Heartbeat Data -->
-            <h2>Heartbeat Data</h2>
+            <!-- Transposed Table Display -->
             <table>
-                <tr>
-                    <th>Server Name</th>
-                    <th>Uptime</th>
-                    <th>Uptime in Seconds</th>
-                    <th>ProTx Hash</th>
-                    <th>Core Block Height</th>
-                    <th>Platform Block Height</th>
-                    <th>P2P Port State</th>
-                    <th>HTTP Port State</th>
-                    <th>PoSe Penalty</th>
-                    <th>PoSe Revived Height</th>
-                    <th>PoSe Ban Height</th>
-                    <th>Last Paid Height</th>
-                    <th>Last Paid Time</th>
-                    <th>Payment Queue Position</th>
-                    <th>Next Payment Time</th>
-                    <th>Proposed Block in Current Epoch</th>
-                    <th>Epoch Number</th>
-                    <th>Epoch First Block Height</th>
-                    <th>Epoch Start Time</th>
-                    <th>Epoch End Time</th>
-                    <th>In Quorum</th>
-                </tr>
-                {% for server, data in heartbeat_data.items() %}
-                <tr>
+                <tr class="header-row">
+                    <td>Metric</td>
+                    {% for server in server_names %}
                     <td>{{ server }}</td>
-                    <td>{{ data['uptime'] }}</td>
-                    <td>{{ data['uptimeInSeconds'] }}</td>
-                    <td>{{ data['proTxHash'] }}</td>
-                    <td>{{ data['coreBlockHeight'] }}</td>
-                    <td>{{ data['platformBlockHeight'] }}</td>
-                    <td>{{ data['p2pPortState'] }}</td>
-                    <td>{{ data['httpPortState'] }}</td>
-                    <td>{{ data['poSePenalty'] }}</td>
-                    <td>{{ data['poSeRevivedHeight'] }}</td>
-                    <td>{{ data['poSeBanHeight'] }}</td>
-                    <td>{{ data['lastPaidHeight'] }}</td>
-                    <td>{{ data['lastPaidTime'] }}</td>
-                    <td>{{ data['paymentQueuePosition'] }}</td>
-                    <td>{{ data['nextPaymentTime'] }}</td>
-                    <td>{{ data['proposedBlockInCurrentEpoch'] }}</td>
-                    <td>{{ data['epochNumber'] }}</td>
-                    <td>{{ data['epochFirstBlockHeight'] }}</td>
-                    <td>{{ data['epochStartTime'] }}</td>
-                    <td>{{ data['epochEndTime'] }}</td>
-                    <td>{{ data['inQuorum'] }}</td>
+                    {% endfor %}
+                </tr>
+                {% for key in ['uptime', 'uptimeInSeconds', 'proTxHash', 'coreBlockHeight', 'platformBlockHeight', 'p2pPortState', 'httpPortState', 'poSePenalty', 'poSeRevivedHeight', 'poSeBanHeight', 'lastPaidHeight', 'lastPaidTime', 'paymentQueuePosition', 'nextPaymentTime', 'proposedBlockInCurrentEpoch', 'epochNumber', 'epochFirstBlockHeight', 'epochStartTime', 'epochEndTime', 'inQuorum'] %}
+                <tr>
+                    <td>{{ key }}</td>
+                    {% for server in server_names %}
+                    <td class="{{ 'wrap' if key == 'proTxHash' else '' }}">{{ heartbeat_data[server].get(key, 'N/A') }}</td>
+                    {% endfor %}
                 </tr>
                 {% endfor %}
             </table>
@@ -185,7 +154,7 @@ def display_validators():
         </html>
         """
         
-        return render_template_string(html_template, current_time=current_time, heartbeat_data=heartbeat_data)
+        return render_template_string(html_template, current_time=current_time, heartbeat_data=heartbeat_data, server_names=server_names)
     except Exception as e:
         logging.debug(f"Exception occurred in display_validators: {e}")
         return "An error occurred while processing your request.", 500
