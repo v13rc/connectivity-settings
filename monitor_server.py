@@ -74,9 +74,7 @@ def load_from_file(filename):
         with open(filename, 'r') as f:
             logging.debug(f"Loading data from file {filename}.")
             data = json.load(f)
-            # Read additional data but do not display it
-            additional_data = data.get('additional_data', {})
-            logging.debug(f"Read additional data: {additional_data}")
+            logging.debug(f"Data loaded successfully: {data}")
             return data
     except json.JSONDecodeError as e:
         logging.critical(f"JSON decode error for file {filename}: {e}")
@@ -290,6 +288,37 @@ def display_validators():
                     <td class="bold">inQuorum</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
+                    {% endfor %}
+                </tr>
+                <!-- Additional Rows -->
+                <tr>
+                    <td class="bold">balance</td>
+                    {% for server in server_names %}
+                    <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="bold">balance</td>
+                    {% for server in server_names %}
+                    <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="bold">produceBlockStatus</td>
+                    {% for server in server_names %}
+                    <td>{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="bold">lastProduceBlockHeight</td>
+                    {% for server in server_names %}
+                    <td>{{ heartbeat_data[server].get('lastProduceBlockHeight', 'N/A') }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td class="bold">lastShouldProduceBlockHeight</td>
+                    {% for server in server_names %}
+                    <td>{{ heartbeat_data[server].get('lastShouldProduceBlockHeight', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
             </table>
