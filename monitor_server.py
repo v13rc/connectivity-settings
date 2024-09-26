@@ -127,6 +127,10 @@ def display_validators():
             platform_height = heartbeat_data[server].get('platformBlockHeight', 0)
             return 'Evonode' if platform_height > 0 else 'Masternode'
 
+        # Convert credits to Dash
+        def convert_to_dash(credits):
+            return credits / 100000000000
+
         html_template = """
         <!DOCTYPE html>
         <html>
@@ -161,6 +165,14 @@ def display_validators():
                     font-weight: bold;
                 }
                 .bold {
+                    font-weight: bold;
+                }
+                .green {
+                    color: green;
+                    font-weight: bold;
+                }
+                .red {
+                    color: red;
                     font-weight: bold;
                 }
             </style>
@@ -287,36 +299,36 @@ def display_validators():
                 <tr>
                     <td class="bold">inQuorum</td>
                     {% for server in server_names %}
-                    <td>{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
+                    <td class="{{ 'green' if heartbeat_data[server].get('inQuorum', False) else '' }}">{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <!-- Additional Rows -->
                 <tr>
-                    <td class="bold">balance</td>
+                    <td class="bold">balanceInCredits</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td class="bold">balance</td>
+                    <td class="bold">balanceInDash</td>
                     {% for server in server_names %}
-                    <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
+                    <td>{{ '{:.8f}'.format(convert_to_dash(heartbeat_data[server].get('balance', 0))) }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
                     <td class="bold">produceBlockStatus</td>
                     {% for server in server_names %}
-                    <td>{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}</td>
+                    <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td class="bold">lastProduceBlockHeight</td>
+                    <td class="bold">lastProdHeight</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('lastProduceBlockHeight', 'N/A') }}</td>
                     {% endfor %}
                 </tr>
                 <tr>
-                    <td class="bold">lastShouldProduceBlockHeight</td>
+                    <td class="bold">shouldProdHeight</td>
                     {% for server in server_names %}
                     <td>{{ heartbeat_data[server].get('lastShouldProduceBlockHeight', 'N/A') }}</td>
                     {% endfor %}
@@ -326,7 +338,7 @@ def display_validators():
         </html>
         """
         
-        return render_template_string(html_template, current_time=current_time, heartbeat_data=heartbeat_data, server_names=server_names, format_protx=format_protx, get_node_type=get_node_type)
+        return render_template_string(html_template, current_time=current_time, heartbeat_data=heartbeat_data, server_names=server_names, format_protx=format_protx, get_node_type=get_node_type, convert_to_dash=convert_to_dash)
     except Exception as e:
         logging.debug(f"Exception occurred in display_validators: {e}")
         return "An error occurred while processing your request.", 500
