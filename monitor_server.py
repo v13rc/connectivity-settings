@@ -203,10 +203,10 @@ def display_validators():
             alerts[server].append(f"ALERT_PENALTY_{server.upper()}")
         if data.get('poSeBanHeight', -1) != -1:
             alerts[server].append(f"ALERT_{server.upper()}_POSEBAN")
-        if data.get('p2pPortState', 'OPEN') != 'OPEN':
-            alerts[server].append(f"ALERT_{server.upper()}_P2P")
-        if data.get('httpPortState', 'OPEN') != 'OPEN':
-            alerts[server].append(f"ALERT_{server.upper()}_HTTP")
+        #if data.get('p2pPortState', 'OPEN') != 'OPEN':
+        #    alerts[server].append(f"ALERT_{server.upper()}_P2P")
+        #if data.get('httpPortState', 'OPEN') != 'OPEN':
+        #    alerts[server].append(f"ALERT_{server.upper()}_HTTP")
         if data.get('produceBlockStatus', '') == 'ERROR':
             alerts[server].append(f"ALERT_{server.upper()}_BLOCKSTATUS")
         last_report_time, is_alert = time_ago_from_minutes_seconds(data.get('lastReportTime', 0))
