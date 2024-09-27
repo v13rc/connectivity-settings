@@ -4,6 +4,9 @@ from datetime import datetime, timedelta, timezone
 import logging
 import json
 
+# Import blueprint from monitor_server_routes.py
+from monitor_server_routes import monitor_routes_bp
+
 # Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
@@ -17,6 +20,9 @@ logging.basicConfig(
 HEARTBEAT_FILE = 'app_data/heartbeat_data.json'
 
 app = Flask(__name__)
+
+# Register blueprint
+app.register_blueprint(monitor_routes_bp)
 
 heartbeat_data = {}
 
