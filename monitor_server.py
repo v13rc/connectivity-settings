@@ -75,19 +75,18 @@ def convert_to_dash(credits):
 
 
 def format_timestamp(timestamp):
-    """Convert a timestamp to a shorter, human-readable format in UTC+2."""
+    """Convert a timestamp to a shorter, human-readable format in UTC+1."""
     dt = datetime.fromtimestamp(int(timestamp) / 1000, tz=timezone.utc).astimezone(timezone(timedelta(hours=2)))
     return dt.strftime('%b %d %H:%M')
 
 
 def time_ago_from_minutes_seconds(timestamp):
-    """Convert a timestamp to a format showing time elapsed since the timestamp in minutes and seconds."""
+    """Convert a timestamp to minutes and seconds format."""
     now = datetime.now(timezone.utc)
     elapsed = now - datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    minutes, seconds = divmod(elapsed.total_seconds(), 60)
-    minutes = int(minutes)
-    seconds = int(seconds)
-    return f"{minutes}m {seconds}s", minutes > 30
+    minutes, seconds = divmod(elapsed.seconds, 60)
+    is_over_30 = minutes > 30
+    return f"{minutes}m {seconds}s", is_over_30
 
 
 @app.route('/heartbeat', methods=['POST'])
@@ -122,7 +121,7 @@ def display_validators():
     logging.debug("Loading heartbeat data from file.")
     heartbeat_data = load_from_file(HEARTBEAT_FILE)
 
-    current_time = datetime.now().astimezone(timezone(timedelta(hours=1))).strftime("%Y-%m-%d %H:%M:%S")
+    current_time = datetime.now().astimezone(timezone(timedelta(hours=2))).strftime("%Y-%m-%d %H:%M:%S")
     server_names = sorted(heartbeat_data.keys())
 
     # Aggregate data calculations
@@ -143,8 +142,7 @@ def display_validators():
     validators_in_quorum = []
     latest_block_validator = None
 
-    # Initialize alerts dictionary
-    alerts = {}
+    alerts = {server: [] for server in server_names}  # Initialize empty alerts for each server
 
     for server, data in heartbeat_data.items():
         platform_block_height = data.get('platformBlockHeight', 0)
@@ -153,51 +151,46 @@ def display_validators():
             validators_in_quorum = data.get('validatorsInQuorum', [])
             latest_block_validator = data.get('latestBlockValidator', None)
 
-        # Check for conditions that trigger alerts
-        alert_code = f"ALERT_{server.upper()}"
-        alert_messages = []
-
-        if data.get('poSePenalty', 0) != 0:
-            alert_messages.append(f"{alert_code}_PENALTY")
-        if data.get('poSeBanHeight', -1) != -1:
-            alert_messages.append(alert_code)
-        if data.get('p2pPortState', 'OPEN') != 'OPEN':
-            alert_messages.append(alert_code)
-        if data.get('httpPortState', 'OPEN') != 'OPEN':
-            alert_messages.append(alert_code)
-        if data.get('produceBlockStatus', '') == 'ERROR':
-            alert_messages.append(alert_code)
-        _, is_over_30_min = time_ago_from_minutes_seconds(data.get('lastReportTime', 0))
-        if is_over_30_min:
-            alert_messages.append(alert_code)
-
-        # Store the alert code with its conditions
-        alerts[server] = ' '.join(alert_messages)
-
-    for server in heartbeat_data.values():
-        is_evonode = server.get('platformBlockHeight', 0) > 0
+    for server, data in heartbeat_data.items():
+        is_evonode = data.get('platformBlockHeight', 0) > 0
         masternodes += not is_evonode
         evonodes += is_evonode
-        total_balance_credits += server.get('balance', 0)
-        total_proposed_blocks += int(server.get('proposedBlockInCurrentEpoch', 0))
+        total_balance_credits += data.get('balance', 0)
+        total_proposed_blocks += int(data.get('proposedBlockInCurrentEpoch', 0))
 
         if is_evonode:
-            if server.get('produceBlockStatus') == 'OK':
+            if data.get('produceBlockStatus') == 'OK':
                 ok_evonodes += 1
-            if server.get('inQuorum'):
+            if data.get('inQuorum'):
                 in_quorum_evonodes += 1
 
-            epoch_number = server.get('epochNumber', epoch_number)
-            epoch_first_block_height = int(server.get('epochFirstBlockHeight', epoch_first_block_height))
-            latest_block_height = int(server.get('latestBlockHeight', latest_block_height))
-            epoch_start_time = int(server.get('epochStartTime', epoch_start_time))
+            epoch_number = data.get('epochNumber', epoch_number)
+            epoch_first_block_height = int(data.get('epochFirstBlockHeight', epoch_first_block_height))
+            latest_block_height = int(data.get('latestBlockHeight', latest_block_height))
+            epoch_start_time = int(data.get('epochStartTime', epoch_start_time))
+
+        # Generate alerts based on specified conditions
+        alert_prefix = f"ALERT_{server.upper()}"
+        if data.get('poSePenalty', 0) != 0:
+            alerts[server].append(f"ALERT_PENALTY_{server.upper()}")
+        if data.get('poSeBanHeight', -1) != -1:
+            alerts[server].append(alert_prefix)
+        if data.get('p2pPortState', 'OPEN') != 'OPEN':
+            alerts[server].append(alert_prefix)
+        if data.get('httpPortState', 'OPEN') != 'OPEN':
+            alerts[server].append(alert_prefix)
+        if data.get('produceBlockStatus', '') == 'ERROR':
+            alerts[server].append(alert_prefix)
+        last_report_time, is_over_30 = time_ago_from_minutes_seconds(data.get('lastReportTime', 0))
+        if is_over_30:
+            alerts[server].append(alert_prefix)
 
     total_balance_dash = convert_to_dash(total_balance_credits)
     blocks_in_epoch = latest_block_height - epoch_first_block_height
     share_proposed_blocks = (total_proposed_blocks / blocks_in_epoch) * 100 if blocks_in_epoch else 0
     epoch_start_human = format_timestamp(epoch_start_time)
     epoch_end_time = datetime.fromtimestamp(epoch_start_time / 1000, tz=timezone.utc) + timedelta(days=9.125)
-    epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=1))).strftime('%b %d %H:%M')
+    epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=2))).strftime('%b %d %H:%M')
 
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -265,9 +258,8 @@ def display_validators():
             .highlight-latest {
                 background-color: #d4f4d2;
             }
-            .red-bold {
-                color: red;
-                font-weight: bold;
+            .hidden-alert {
+                display: none;
             }
             meta[name="format-detection"] {
                 format-detection: none;
@@ -342,8 +334,10 @@ def display_validators():
             <tr>
                 <td class="bold">lastReportTime</td>
                 {% for server in server_names %}
-                {% set last_report, is_over_30 = time_ago_from_minutes_seconds(heartbeat_data[server].get('lastReportTime', 0)) %}
-                <td class="{{ 'red-bold' if is_over_30 else '' }}">{{ last_report }} {{ alerts[server] }}</td>
+                <td class="{{ 'red bold' if time_ago_from_minutes_seconds(heartbeat_data[server].get('lastReportTime', 0))[1] else '' }}">
+                    {{ time_ago_from_minutes_seconds(heartbeat_data[server].get('lastReportTime', 0))[0] }}
+                    <span class="hidden-alert">{% if 'ALERT_' in alerts[server] %}{{ alerts[server] | join(' ') }}{% endif %}</span>
+                </td>
                 {% endfor %}
             </tr>
             <tr class="bold">
@@ -385,7 +379,7 @@ def display_validators():
             <tr>
                 <td class="bold">poSePenalty</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('poSePenalty', 'N/A') }} {{ alerts[server] }}</td>
+                <td>{{ heartbeat_data[server].get('poSePenalty', 'N/A') }} <span class="hidden-alert">{% if 'ALERT_PENALTY_' in alerts[server] %}{{ alerts[server] | join(' ') }}{% endif %}</span></td>
                 {% endfor %}
             </tr>
             <tr>
@@ -397,7 +391,7 @@ def display_validators():
             <tr>
                 <td class="bold">poSeBanHeight</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }} {{ alerts[server] }}</td>
+                <td>{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }} <span class="hidden-alert">{% if 'ALERT_' in alerts[server] %}{{ alerts[server] | join(' ') }}{% endif %}</span></td>
                 {% endfor %}
             </tr>
             <tr class="bold">
@@ -415,13 +409,13 @@ def display_validators():
             <tr>
                 <td class="bold">p2pPortState</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('p2pPortState', 'N/A') }} {{ alerts[server] }}</td>
+                <td>{{ heartbeat_data[server].get('p2pPortState', 'N/A') }} <span class="hidden-alert">{% if 'ALERT_' in alerts[server] %}{{ alerts[server] | join(' ') }}{% endif %}</span></td>
                 {% endfor %}
             </tr>
             <tr>
                 <td class="bold">httpPortState</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('httpPortState', 'N/A') }} {{ alerts[server] }}</td>
+                <td>{{ heartbeat_data[server].get('httpPortState', 'N/A') }} <span class="hidden-alert">{% if 'ALERT_' in alerts[server] %}{{ alerts[server] | join(' ') }}{% endif %}</span></td>
                 {% endfor %}
             </tr>
             <tr>
@@ -451,7 +445,10 @@ def display_validators():
             <tr>
                 <td class="bold">produceBlockStatus</td>
                 {% for server in server_names %}
-                <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }} {{ alerts[server] }}</td>
+                <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">
+                    {{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}
+                    <span class="hidden-alert">{% if 'ALERT_' in alerts[server] %}{{ alerts[server] | join(' ') }}{% endif %}</span>
+                </td>
                 {% endfor %}
             </tr>
             <tr>
@@ -511,8 +508,7 @@ def display_validators():
         convert_to_dash=convert_to_dash,
         time_ago_from_minutes_seconds=time_ago_from_minutes_seconds,
         latest_block_validator=latest_block_validator,
-        alerts=alerts,
-        protx_in_second_table=protx_in_second_table
+        alerts=alerts
     )
 
 
