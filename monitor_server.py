@@ -84,10 +84,9 @@ def time_ago_from_minutes_seconds(timestamp):
     """Convert a timestamp to a format showing minutes and seconds elapsed since the timestamp."""
     now = datetime.now(timezone.utc)
     elapsed = now - datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    minutes, seconds = divmod(elapsed.seconds, 60)
-    alert = minutes > 30
-    time_display = f"{minutes}m {seconds}s"
-    return time_display, alert
+    minutes, seconds = divmod(elapsed.total_seconds(), 60)
+    is_alert = minutes > 30
+    return f"{int(minutes)}m {int(seconds)}s", is_alert
 
 
 @app.route('/heartbeat', methods=['POST'])
@@ -142,7 +141,6 @@ def display_validators():
     highest_platform_block_height = 0
     validators_in_quorum = []
     latest_block_validator = None
-    alerts = {}
 
     for server, data in heartbeat_data.items():
         platform_block_height = data.get('platformBlockHeight', 0)
@@ -151,41 +149,23 @@ def display_validators():
             validators_in_quorum = data.get('validatorsInQuorum', [])
             latest_block_validator = data.get('latestBlockValidator', None)
 
-    for server, data in heartbeat_data.items():
-        is_evonode = data.get('platformBlockHeight', 0) > 0
+    for server in heartbeat_data.values():
+        is_evonode = server.get('platformBlockHeight', 0) > 0
         masternodes += not is_evonode
         evonodes += is_evonode
-        total_balance_credits += data.get('balance', 0)
-        total_proposed_blocks += int(data.get('proposedBlockInCurrentEpoch', 0))
-
-        server_name_upper = data.get('serverName', '').upper()
-        alerts[server] = []
-
-        # Generate alert codes based on conditions
-        if data.get('poSePenalty', 0) != 0:
-            alerts[server].append(f"ALERT_PENALTY_{server_name_upper}")
-        if data.get('poSeBanHeight', -1) != -1:
-            alerts[server].append(f"ALERT_{server_name_upper}_POSEBAN")
-        if data.get('p2pPortState', 'OPEN') != 'OPEN':
-            alerts[server].append(f"ALERT_{server_name_upper}_P2P")
-        if data.get('httpPortState', 'OPEN') != 'OPEN':
-            alerts[server].append(f"ALERT_{server_name_upper}_HTTP")
-        if data.get('produceBlockStatus', '') == 'ERROR':
-            alerts[server].append(f"ALERT_{server_name_upper}_BLOCKSTATUS")
-        _, alert = time_ago_from_minutes_seconds(data.get('lastReportTime', 0))
-        if alert:
-            alerts[server].append(f"ALERT_{server_name_upper}_LASTREPORT")
+        total_balance_credits += server.get('balance', 0)
+        total_proposed_blocks += int(server.get('proposedBlockInCurrentEpoch', 0))
 
         if is_evonode:
-            if data.get('produceBlockStatus') == 'OK':
+            if server.get('produceBlockStatus') == 'OK':
                 ok_evonodes += 1
-            if data.get('inQuorum'):
+            if server.get('inQuorum'):
                 in_quorum_evonodes += 1
 
-            epoch_number = data.get('epochNumber', epoch_number)
-            epoch_first_block_height = int(data.get('epochFirstBlockHeight', epoch_first_block_height))
-            latest_block_height = int(data.get('latestBlockHeight', latest_block_height))
-            epoch_start_time = int(data.get('epochStartTime', epoch_start_time))
+            epoch_number = server.get('epochNumber', epoch_number)
+            epoch_first_block_height = int(server.get('epochFirstBlockHeight', epoch_first_block_height))
+            latest_block_height = max(latest_block_height, int(server.get('platformBlockHeight', latest_block_height)))
+            epoch_start_time = int(server.get('epochStartTime', epoch_start_time))
 
     total_balance_dash = convert_to_dash(total_balance_credits)
     blocks_in_epoch = latest_block_height - epoch_first_block_height
@@ -205,6 +185,27 @@ def display_validators():
 
     # Get the set of ProTxHashes in the second table to compare with validators in quorum
     protx_in_second_table = {heartbeat_data[server].get('proTxHash') for server in server_names}
+
+    # Generate alerts for each node
+    alerts = {}
+    for server in server_names:
+        alerts[server] = []
+        data = heartbeat_data[server]
+
+        # Check conditions for alerts
+        if data.get('poSePenalty', 0) != 0:
+            alerts[server].append(f"ALERT_PENALTY_{server.upper()}")
+        if data.get('poSeBanHeight', -1) != -1:
+            alerts[server].append(f"ALERT_{server.upper()}_POSEBAN")
+        if data.get('p2pPortState', 'OPEN') != 'OPEN':
+            alerts[server].append(f"ALERT_{server.upper()}_P2P")
+        if data.get('httpPortState', 'OPEN') != 'OPEN':
+            alerts[server].append(f"ALERT_{server.upper()}_HTTP")
+        if data.get('produceBlockStatus', '') == 'ERROR':
+            alerts[server].append(f"ALERT_{server.upper()}_BLOCKSTATUS")
+        last_report_time, is_alert = time_ago_from_minutes_seconds(data.get('lastReportTime', 0))
+        if is_alert:
+            alerts[server].append(f"ALERT_{server.upper()}_LASTREPORT")
 
     # Render HTML template
     html_template = """
@@ -247,6 +248,10 @@ def display_validators():
             }
             .green {
                 color: green;
+                font-weight: bold;
+            }
+            .red-bold {
+                color: red;
                 font-weight: bold;
             }
             .light-green {
@@ -334,7 +339,7 @@ def display_validators():
                 <td class="bold">lastReportTime</td>
                 {% for server in server_names %}
                 {% set last_report_time, is_alert = time_ago_from_minutes_seconds(heartbeat_data[server].get('lastReportTime', 0)) %}
-                <td class="{{ 'red bold' if is_alert else '' }}">{{ last_report_time }}{% if is_alert %}<span class="hidden">ALERT_{{ server.upper() }}_LASTREPORT</span>{% endif %}</td>
+                <td class="{{ 'red-bold' if is_alert else '' }}">{{ last_report_time }}{% if is_alert %}<span class="hidden">ALERT_{{ server.upper() }}_LASTREPORT</span>{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr class="bold">
@@ -376,7 +381,7 @@ def display_validators():
             <tr>
                 <td class="bold">poSePenalty</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('poSePenalty', 'N/A') }}{% if heartbeat_data[server].get('poSePenalty', 0) != 0 %}<span class="hidden">ALERT_PENALTY_{{ server.upper() }}</span>{% endif %}</td>
+                <td class="{{ 'red-bold' if heartbeat_data[server].get('poSePenalty', 0) != 0 else '' }}">{{ heartbeat_data[server].get('poSePenalty', 'N/A') }}{% if heartbeat_data[server].get('poSePenalty', 0) != 0 %}<span class="hidden">ALERT_PENALTY_{{ server.upper() }}</span>{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
@@ -388,7 +393,7 @@ def display_validators():
             <tr>
                 <td class="bold">poSeBanHeight</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }}{% if heartbeat_data[server].get('poSeBanHeight', -1) != -1 %}<span class="hidden">ALERT_{{ server.upper() }}_POSEBAN</span>{% endif %}</td>
+                <td class="{{ 'red-bold' if heartbeat_data[server].get('poSeBanHeight', -1) != -1 else '' }}">{{ heartbeat_data[server].get('poSeBanHeight', 'N/A') }}{% if heartbeat_data[server].get('poSeBanHeight', -1) != -1 %}<span class="hidden">ALERT_{{ server.upper() }}_POSEBAN</span>{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr class="bold">
@@ -406,43 +411,19 @@ def display_validators():
             <tr>
                 <td class="bold">p2pPortState</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}{% if heartbeat_data[server].get('p2pPortState', 'OPEN') != 'OPEN' %}<span class="hidden">ALERT_{{ server.upper() }}_P2P</span>{% endif %}</td>
+                <td class="{{ 'red-bold' if heartbeat_data[server].get('p2pPortState', 'OPEN') != 'OPEN' else '' }}">{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}{% if heartbeat_data[server].get('p2pPortState', 'OPEN') != 'OPEN' %}<span class="hidden">ALERT_{{ server.upper() }}_P2P</span>{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <td class="bold">httpPortState</td>
                 {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('httpPortState', 'N/A') }}{% if heartbeat_data[server].get('httpPortState', 'OPEN') != 'OPEN' %}<span class="hidden">ALERT_{{ server.upper() }}_HTTP</span>{% endif %}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">proposedBlocks</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('proposedBlockInCurrentEpoch', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">inQuorum</td>
-                {% for server in server_names %}
-                <td class="{{ 'green' if heartbeat_data[server].get('inQuorum', False) else '' }}">{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">balanceInCredits</td>
-                {% for server in server_names %}
-                <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <td class="bold">balanceInDash</td>
-                {% for server in server_names %}
-                <td>{{ '{:.8f}'.format(convert_to_dash(heartbeat_data[server].get('balance', 0))) }}</td>
+                <td class="{{ 'red-bold' if heartbeat_data[server].get('httpPortState', 'OPEN') != 'OPEN' else '' }}">{{ heartbeat_data[server].get('httpPortState', 'N/A') }}{% if heartbeat_data[server].get('httpPortState', 'OPEN') != 'OPEN' %}<span class="hidden">ALERT_{{ server.upper() }}_HTTP</span>{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <td class="bold">produceBlockStatus</td>
                 {% for server in server_names %}
-                <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}{% if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' %}<span class="hidden">ALERT_{{ server.upper() }}_BLOCKSTATUS</span>{% endif %}</td>
+                <td class="{{ 'green' if heartbeat_data[server].get('produceBlockStatus', '') == 'OK' else 'red-bold' if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' else '' }}">{{ heartbeat_data[server].get('produceBlockStatus', 'N/A') }}{% if heartbeat_data[server].get('produceBlockStatus', '') == 'ERROR' %}<span class="hidden">ALERT_{{ server.upper() }}_BLOCKSTATUS</span>{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
