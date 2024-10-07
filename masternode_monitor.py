@@ -153,7 +153,7 @@ def main(report_url, verbose=False):
 
     # Step 3: Fetch current and previous epoch data
     epoch_info = run_command(
-        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"count\":2}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo",
+        f"grpcurl -proto platform.proto -d '{{"v0": {{"count":2}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo",
         verbose
     )
     if epoch_info:
@@ -174,7 +174,7 @@ def main(report_url, verbose=False):
 
     # Step 4: Fetch proposed blocks in the previous epoch
     previous_proposed_blocks = run_command(
-        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {previous_epoch_number}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
+        f"grpcurl -proto platform.proto -d '{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
         verbose
     )
     if previous_proposed_blocks:
@@ -188,7 +188,7 @@ def main(report_url, verbose=False):
 
     # Step 5: Fetch proposed blocks in the current epoch
     current_proposed_blocks = run_command(
-        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {epoch_number}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
+        f"grpcurl -proto platform.proto -d '{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
         verbose
     )
     if current_proposed_blocks:
@@ -202,7 +202,7 @@ def main(report_url, verbose=False):
 
     # Step 6: Fetch balance for the node
     balance_response = run_command(
-        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"id\": \"{platform_protx_hash}\"}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
+        f"grpcurl -proto platform.proto -d '{{"v0": {{"id": "{platform_protx_hash}"}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
         verbose
     )
     if balance_response:
@@ -281,47 +281,4 @@ def main(report_url, verbose=False):
         "poSeBanHeight": po_se_ban_height,
         "lastPaidHeight": last_paid_height,
         "lastPaidTime": last_paid_time,
-        "paymentQueuePosition": payment_queue_position,
-        "nextPaymentTime": next_payment_time,
-        "proposedBlockInCurrentEpoch": proposed_block_in_current_epoch,
-        "proposedBlockInPreviousEpoch": proposed_block_in_previous_epoch,
-        "epochNumber": epoch_number,
-        "epochFirstBlockHeight": epoch_first_block_height,
-        "epochStartTime": epoch_start_time,
-        "previousEpochNumber": previous_epoch_number,
-        "previousEpochFirstBlockHeight": previous_epoch_first_block_height,
-        "previousEpochStartTime": previous_epoch_start_time,
-        "inQuorum": in_quorum,
-        "validatorsInQuorum": validators_in_quorum,
-        "latestBlockHash": latest_block_hash,
-        "latestBlockHeight": latest_block_height,
-        "latestBlockValidator": latest_block_validator,
-        "balance": balance,
-        "lastProduceBlockHeight": last_produce_block_height,
-        "lastShouldProduceBlockHeight": last_should_produce_block_height,
-        "produceBlockStatus": produce_block_status,
-        "blocks": blocks
-    }
-
-    # Filter out None values from the payload
-    payload = {k: v for k, v in payload.items() if v is not None}
-
-    # Step 12: Send the report
-    post_json_data(report_url, payload, verbose)
-
-    # Step 13: Restart server if uptime is greater than 31 days and not in quorum
-    if in_quorum is False and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 31 * 86400:
-        print("Restarting server...")
-        run_command("sudo reboot", verbose)
-
-if __name__ == "__main__":
-    verbose_mode = '-v' in sys.argv
-    if verbose_mode:
-        sys.argv.remove('-v')
-
-    if len(sys.argv) != 2:
-        print("Usage: python3 masternode_monitor.py <report_url> [-v]")
-        sys.exit(1)
-
-    report_url = sys.argv[1]
-    main(report_url, verbose_mode)
+        "
