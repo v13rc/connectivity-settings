@@ -12,27 +12,31 @@ def print_verbose(message, verbose):
         print(message)
 
 def run_command(command, verbose=False):
-    """Run a shell command and return its output."""
-    print_verbose(f"Running command: {command}", verbose)
+    """Run a shell command more safely and return its output."""
+    print_verbose(f"Running command: {' '.join(command)}", verbose)
     try:
-        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
         print_verbose(f"Command output: {result.stdout.strip()}", verbose)
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
-        print(f"Error running command {command}: {e}")
+        print(f"Error running command {' '.join(command)}: {e}")
         return None
 
 def post_json_data(url, data, verbose=False):
     """Post JSON data to a URL using curl."""
     json_data = json.dumps(data)
-    curl_command = f"curl -X POST {url} -H 'Content-Type: application/json' -d '{json_data}'"
+    curl_command = ["curl", "-X", "POST", url, "-H", "Content-Type: application/json", "-d", json_data]
     print_verbose(f"Posting data to URL: {url} with payload: {json.dumps(data, indent=2)}", verbose)
     run_command(curl_command, verbose)
 
 def hex_to_base64(hex_value):
-    """Convert a hex string to Base64."""
-    bytes_value = bytes.fromhex(hex_value)
-    return base64.b64encode(bytes_value).decode('utf-8')
+    """Convert a hex string to Base64 with error handling."""
+    try:
+        bytes_value = bytes.fromhex(hex_value)
+        return base64.b64encode(bytes_value).decode('utf-8')
+    except ValueError as e:
+        print(f"Error converting hex to base64: {e}")
+        return None
 
 def load_bashrc_variables():
     """Load environment variables from ~/.bashrc."""
@@ -79,15 +83,15 @@ def main(report_url, verbose=False):
     load_bashrc_variables()
 
     # Step 1: Run the dashmate status command and parse JSON output
-    dashmate_status = run_command("dashmate status --format=json", verbose)
+    dashmate_status = run_command(["dashmate", "status", "--format=json"], verbose)
     if not dashmate_status:
         return
 
     try:
         status_data = json.loads(dashmate_status)
         print_verbose(f"Dashmate status JSON: {json.dumps(status_data, indent=2)}", verbose)
-    except json.JSONDecodeError:
-        print("Error parsing dashmate status JSON.")
+    except json.JSONDecodeError as e:
+        print(f"Error parsing dashmate status JSON: {e}")
         return
 
     # Fetch proTxHash and other data directly from the correct location
@@ -153,7 +157,7 @@ def main(report_url, verbose=False):
 
     # Step 3: Fetch current and previous epoch data
     epoch_info = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"count": 2}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo',
+        ["grpcurl", "-proto", "platform.proto", "-d", '{"v0": {"count": 2}}', platform_service_address, "org.dash.platform.dapi.v0.Platform/getEpochsInfo"],
         verbose
     )
     if epoch_info:
@@ -174,35 +178,33 @@ def main(report_url, verbose=False):
 
     # Step 4: Fetch proposed blocks in the previous epoch
     previous_proposed_blocks = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
+        ["grpcurl", "-proto", "platform.proto", "-d", f'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}}', platform_service_address, "org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds"],
         verbose
     )
     if previous_proposed_blocks:
         try:
             previous_blocks_json = json.loads(previous_proposed_blocks)
-            count_info = previous_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
-                "evonodesProposedBlockCounts", [])
+            count_info = previous_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get("evonodesProposedBlockCounts", [])
             proposed_block_in_previous_epoch = count_info[0].get("count", 0) if count_info else 0
         except (json.JSONDecodeError, IndexError, KeyError):
             proposed_block_in_previous_epoch = 0
 
     # Step 5: Fetch proposed blocks in the current epoch
     current_proposed_blocks = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
+        ["grpcurl", "-proto", "platform.proto", "-d", f'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}}', platform_service_address, "org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds"],
         verbose
     )
     if current_proposed_blocks:
         try:
             current_blocks_json = json.loads(current_proposed_blocks)
-            count_info = current_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
-                "evonodesProposedBlockCounts", [])
+            count_info = current_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get("evonodesProposedBlockCounts", [])
             proposed_block_in_current_epoch = count_info[0].get("count", 0) if count_info else 0
         except (json.JSONDecodeError, IndexError, KeyError):
             proposed_block_in_current_epoch = 0
 
     # Step 6: Fetch balance for the node
     balance_response = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"id": "{platform_protx_hash}"}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance',
+        ["grpcurl", "-proto", "platform.proto", "-d", f'{{"v0": {{"id": "{platform_protx_hash}"}}}}', platform_service_address, "org.dash.platform.dapi.v0.Platform/getIdentityBalance"],
         verbose
     )
     if balance_response:
@@ -215,10 +217,15 @@ def main(report_url, verbose=False):
 
     # Step 7: Get latest block validator using the updated command
     latest_block_validator = run_command(
-        f"curl -s http://127.0.0.1:26657/block?height={latest_block_height} | jq -r '.block.header.proposer_pro_tx_hash'",
-        verbose
+        ["curl", "-s", f"http://127.0.0.1:26657/block?height={latest_block_height}"]
     )
-    latest_block_validator = latest_block_validator.upper()
+    try:
+        block_data = json.loads(latest_block_validator)
+        latest_block_validator = block_data['block']['header']['proposer_pro_tx_hash'].upper()
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Error parsing block data: {e}")
+        latest_block_validator = None
+
     print_verbose(f"Latest block {latest_block_height} proposed by {latest_block_validator}.", verbose)
 
     # Step 8: Determine block production status
@@ -239,26 +246,21 @@ def main(report_url, verbose=False):
     # Step 9: Check if proTxHash is in active validators
     print_verbose("Checking if validator is in quorum.", verbose)
     active_validators = run_command(
-        "curl -s http://127.0.0.1:26657/dump_consensus_state | jq '.round_state.validators.validators[].pro_tx_hash'",
-        verbose)
-    if not active_validators:
-        print_verbose("Failed to retrieve active validators.", verbose)
-        in_quorum = None
-        validators_in_quorum = []
-    elif len(active_validators.splitlines()) < 67:
-        print_verbose("Insufficient number of active validators.", verbose)
-        in_quorum = None
-        validators_in_quorum = []
-    else:
-        active_validators_list = [validator.strip('"').upper() for validator in active_validators.splitlines()]
+        ["curl", "-s", "http://127.0.0.1:26657/dump_consensus_state"]
+    )
+    try:
+        consensus_data = json.loads(active_validators)
+        active_validators_list = [validator['pro_tx_hash'].upper() for validator in consensus_data['result']['round_state']['validators']['validators']]
         validators_in_quorum = active_validators_list
         in_quorum = pro_tx_hash in active_validators_list
-        print_verbose(f"Validator {pro_tx_hash} {'is' if in_quorum else 'is not'} in quorum.", verbose)
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Error parsing active validators: {e}")
+        in_quorum = None
+        validators_in_quorum = []
 
     # Step 10: Fetch blocks from blockchain and extract height and proposer_pro_tx_hash
     blocks_response = run_command(
-        "curl -s http://127.0.0.1:26657/blockchain | jq -s '[.block_metas[] | {height: .header.height, proposer_pro_tx_hash: .header.proposer_pro_tx_hash}]'",
-        verbose
+        ["curl", "-s", "http://127.0.0.1:26657/blockchain"]
     )
     
     try:
@@ -270,9 +272,9 @@ def main(report_url, verbose=False):
 
     # Step 11: Prepare the payload with available data
     payload = {
-        "serverName": run_command("whoami", verbose),
-        "uptime": run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime", verbose),
-        "uptimeInSeconds": int(float(run_command("awk '{print $1}' /proc/uptime", verbose))),
+        "serverName": run_command(["whoami"], verbose),
+        "uptime": run_command(["awk", '{up=$1; print int(up/86400)"d "int((up%86400)/3600)"h "int((up%3600)/60)"m "int(up%60)"s"}', "/proc/uptime"], verbose),
+        "uptimeInSeconds": int(float(run_command(["awk", "{print $1}", "/proc/uptime"], verbose))),
         "proTxHash": pro_tx_hash,
         "coreBlockHeight": core_block_height,
         "platformBlockHeight": latest_block_height,
@@ -312,9 +314,9 @@ def main(report_url, verbose=False):
     post_json_data(report_url, payload, verbose)
 
     # Step 13: Restart server if uptime is greater than 31 days and not in quorum
-    if in_quorum is False and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 31 * 86400:
+    if in_quorum is False and float(run_command(["awk", "{print $1}", "/proc/uptime"], verbose)) > 31 * 86400:
         print("Restarting server...")
-        run_command("sudo reboot", verbose)
+        run_command(["sudo", "reboot"], verbose)
 
 if __name__ == "__main__":
     verbose_mode = '-v' in sys.argv
