@@ -152,6 +152,17 @@ def display_validators():
     current_time = datetime.now().astimezone(timezone(timedelta(hours=1))).strftime("%Y-%m-%d %H:%M:%S")
     server_names = sorted(heartbeat_data.keys())
 
+    # Pobierz dane dla serwera
+    selected_server_name = 'andy'
+    selected_server_data = heartbeat_data.get(selected_server_name, {})
+    blocks = selected_server_data.get('blocks', [])
+    
+    # Posortuj bloki malejąco po wysokości
+    sorted_blocks = sorted(blocks, key=lambda x: x['height'], reverse=True)
+    
+    # Wyświetl maksymalnie 500 bloków
+    displayed_blocks = sorted_blocks[:500]
+
     # Aggregate data calculations
     masternodes = 0
     evonodes = 0
@@ -481,53 +492,29 @@ def display_validators():
         </table>
 
         <!-- Validators in Quorum Table -->
-        <table style="width: 100%;">
+        <table style="width: 50%;">
             <tr>
-                <th style="width: 10%;">#</th>
-                <th style="width: 40%;">Validator ProTxHash</th>
-                <th style="width: 25%;">Block Height</th>
-                <th style="width: 25%;">Proposer</th>
+                <th style="width: calc(100% / 12);">#</th>
+                <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th>
             </tr>
-        
-            {# Zbieranie wszystkich bloków z serwerów i sortowanie ich po wysokości (height) malejąco #}
-            {% set all_blocks = [] %}
-            {% for server in heartbeat_data.values() %}
-                {% set blocks = server.get('blocks', []) %}
-                {% for block in blocks %}
-                    {% set all_blocks = all_blocks + [block] %}
-                {% endfor %}
-            {% endfor %}
-            {% set sorted_blocks = all_blocks|sort(attribute='height', reverse=True) %}
-        
-            {# Wyświetlanie validatorów i bloków w jednej tabeli #}
-            {% for i in range(0, max(validators_in_quorum|length, sorted_blocks|length, 500)) %}
+            {% for validator in validators_in_quorum %}
             <tr>
-                <td>{{ i + 1 }}</td>
-        
-                {# Wyświetlanie validatora, jeśli istnieje #}
-                <td>
-                    {% if i < validators_in_quorum|length %}
-                        {{ validators_in_quorum[i] }}
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </td>
-        
-                {# Wyświetlanie block height i proposer, jeśli istnieją #}
-                <td>
-                    {% if i < sorted_blocks|length %}
-                        {{ sorted_blocks[i]['height'] }}
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </td>
-                <td>
-                    {% if i < sorted_blocks|length %}
-                        {{ sorted_blocks[i]['proposer_pro_tx_hash'] }}
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </td>
+                <td>{{ loop.index }}</td>
+                <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <!-- Tabela z blokami i proposerami -->
+        <table style="width: 100%; margin-top: 20px;">
+            <tr>
+                <th style="width: 50%;">Block Height</th>
+                <th style="width: 50%;">Proposer</th>
+            </tr>
+            {% for block in displayed_blocks %}
+            <tr>
+                <td>{{ block.height }}</td>
+                <td>{{ block.proposer_pro_tx_hash }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -563,7 +550,8 @@ def display_validators():
         time_ago_from_minutes_seconds=time_ago_from_minutes_seconds,
         latest_block_validator=latest_block_validator,
         protx_in_second_table=protx_in_second_table,
-        alerts=alerts
+        alerts=alerts,
+        displayed_blocks=displayed_blocks
     )
 
 
