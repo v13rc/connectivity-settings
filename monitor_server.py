@@ -94,19 +94,6 @@ def time_ago_from_minutes_seconds(timestamp):
     is_alert = minutes > 30
     return f"{int(minutes)}m {int(seconds)}s", is_alert
 
-def update_blocks(existing_blocks, new_blocks, max_blocks=500):
-    """
-    Update global blocks by merging new blocks with existing ones and keeping only the top `max_blocks` by height.
-    """
-    # Merge existing and new blocks based on 'height'
-    combined_blocks = {block['height']: block for block in existing_blocks}
-
-    for block in new_blocks:
-        combined_blocks[block['height']] = block
-
-    # Sort blocks by height in descending order and keep the top `max_blocks`
-    sorted_blocks = sorted(combined_blocks.values(), key=lambda x: x['height'], reverse=True)
-    return sorted_blocks[:max_blocks]
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
@@ -118,19 +105,7 @@ def heartbeat():
     if server_name:
         # Save the report time as a UTC timestamp
         data['lastReportTime'] = datetime.now(timezone.utc).timestamp()
-        
-        # Update heartbeat data for the server
-        if server_name not in heartbeat_data:
-            heartbeat_data[server_name] = {}
-        heartbeat_data[server_name].update(data)
-
-        # Handle global blocks (shared across all servers)
-        new_blocks = data.get('blocks', [])
-        if new_blocks:
-            existing_blocks = heartbeat_data.get('blocks', [])
-            updated_blocks = update_blocks(existing_blocks, new_blocks)
-            heartbeat_data['blocks'] = updated_blocks
-
+        heartbeat_data[server_name] = data
         # Save data to file and get the result
         result = save_to_file(heartbeat_data, HEARTBEAT_FILE)
 
@@ -144,6 +119,7 @@ def heartbeat():
         logging.debug("Invalid data format for heartbeat.")
         # Return error message if the input data format is invalid
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
+
 
 @app.route('/', methods=['GET'])
 def display_validators():
