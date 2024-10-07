@@ -73,6 +73,28 @@ def set_env_variable(name, value):
         print(f"Variable {name} saved to .bashrc: {value}")
     except Exception as e:
         print(f"Error saving variable {name} to .bashrc: {e}")
+        
+def fetch_blockchain_data(verbose=False):
+    """Fetch blockchain data and extract blocks with height and proposer_pro_tx_hash."""
+    blockchain_data = run_command("curl -s http://127.0.0.1:26657/blockchain", verbose)
+    
+    if not blockchain_data:
+        return []
+
+    try:
+        blockchain_json = json.loads(blockchain_data)
+        block_metas = blockchain_json.get("block_metas", [])
+        blocks = [
+            {
+                "height": int(block_meta["header"]["height"]),
+                "proposer_pro_tx_hash": block_meta["header"]["proposer_pro_tx_hash"]
+            }
+            for block_meta in block_metas
+        ]
+        return blocks
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Error processing blockchain data: {e}")
+        return []
 
 def main(report_url, verbose=False):
     # Load environment variables from ~/.bashrc to ensure they are available
@@ -107,12 +129,6 @@ def main(report_url, verbose=False):
     # Convert pro_tx_hash from hex to Base64 to get platform_protx_hash
     platform_protx_hash = hex_to_base64(pro_tx_hash)
 
-    # Extract service data and build platform_service_address
-    service = masternode_data.get("nodeState", {}).get("dmnState", {}).get("service", "")
-    node_address = service.split(":")[0]
-    platform_http_port = masternode_data.get("nodeState", {}).get("dmnState", {}).get("platformHTTPPort", "")
-    platform_service_address = f"{node_address}:{platform_http_port}"
-
     # Read additional required fields
     core_block_height = status_data.get("core", {}).get("blockHeight")
     latest_block_height = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHeight")
@@ -125,22 +141,23 @@ def main(report_url, verbose=False):
         print("Error: latest_block_height is not a valid integer.")
         return
 
-    # Step 2: Fetch blockchain information
-    blockchain_info = run_command("curl -s http://127.0.0.1:26657/blockchain", verbose)
-    blocks = []
-    if blockchain_info:
-        try:
-            blockchain_json = json.loads(blockchain_info)
-            block_metas = blockchain_json.get("block_metas", [])
-            for block_meta in block_metas:
-                block = {
-                    "height": block_meta["header"]["height"],
-                    "proposer_pro_tx_hash": block_meta["header"]["proposer_pro_tx_hash"]
-                }
-                blocks.append(block)
-        except json.JSONDecodeError as e:
-            print(f"Error parsing blockchain info JSON: {e}")
-    
+    p2p_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("p2pPortState")
+    http_port_state = status_data.get("platform", {}).get("tenderdash", {}).get("httpPortState")
+    po_se_penalty = masternode_data.get("nodeState", {}).get("dmnState", {}).get("PoSePenalty")
+    po_se_revived_height = masternode_data.get("nodeState", {}).get("dmnState", {}).get("PoSeRevivedHeight")
+    po_se_ban_height = masternode_data.get("nodeState", {}).get("dmnState", {}).get("PoSeBanHeight")
+    last_paid_height = masternode_data.get("nodeState", {}).get("lastPaidHeight")
+    last_paid_time = masternode_data.get("nodeState", {}).get("lastPaidTime")
+    payment_queue_position = masternode_data.get("nodeState", {}).get("paymentQueuePosition")
+    next_payment_time = masternode_data.get("nodeState", {}).get("nextPaymentTime")
+    latest_block_hash = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHash")
+
+    # Extract service data and build platform_service_address
+    service = masternode_data.get("nodeState", {}).get("dmnState", {}).get("service", "")
+    node_address = service.split(":")[0]
+    platform_http_port = masternode_data.get("nodeState", {}).get("dmnState", {}).get("platformHTTPPort", "")
+    platform_service_address = f"{node_address}:{platform_http_port}"
+
     # Initialize variables with default values to avoid unbound errors
     epoch_number = None
     epoch_first_block_height = None
@@ -344,6 +361,9 @@ def main(report_url, verbose=False):
                 # Log when latest_block_validator is less than pro_tx_hash
                 print_verbose(f"Validator {latest_block_validator} is less than {pro_tx_hash}.", verbose)
 
+    # Step 9.5: Fetch blockchain data and extract blocks information
+    blocks = fetch_blockchain_data(verbose)
+
     # Step 10: Prepare the payload with available data
     payload = {
         "serverName": run_command("whoami", verbose),
@@ -352,7 +372,6 @@ def main(report_url, verbose=False):
         "proTxHash": pro_tx_hash,
         "coreBlockHeight": core_block_height,
         "platformBlockHeight": latest_block_height,
-        "blocks": blocks,  # Adding the new blocks array here
         "p2pPortState": p2p_port_state,
         "httpPortState": http_port_state,
         "poSePenalty": po_se_penalty,
@@ -378,7 +397,8 @@ def main(report_url, verbose=False):
         "balance": balance,
         "lastProduceBlockHeight": last_produce_block_height,
         "lastShouldProduceBlockHeight": last_should_produce_block_height,
-        "produceBlockStatus": produce_block_status
+        "produceBlockStatus": produce_block_status,
+        "blocks": blocks  
     }
 
     # Filter out None values from the payload
