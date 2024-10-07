@@ -330,6 +330,9 @@ def display_validators():
             .hidden {
                 display: none;
             }
+            .light-grey {
+                background-color: #f0f0f0;  /* Jasnoszare tło */
+            }
         </style>
         <meta name="format-detection" content="telephone=no">
     </head>
@@ -533,52 +536,53 @@ def display_validators():
         <!-- Połączona tabela z walidatorami i blokami -->
         <table>
         <tr>
-        <th style="width: 10%;">#</th>
-        <th style="width: 40%;">Validators in Quorum</th>
-        <th style="width: 10%;">Block Height</th>
-        <th style="width: 40%;">Proposer</th>
-    </tr>
-    {% for i in range(max_length) %}
-    <tr>
-        <td>{{ i + 1 }}</td>
-    
-        <!-- Kolumna z walidatorami -->
-        <td>
-            {% if i < validators_in_quorum|length %}
-                <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
-                    {{ validators_in_quorum[i] }}
-                </span>
-            {% elif i - validators_in_quorum|length < prev_validators_in_quorum|length %}
-                <span class="light-grey {{ 'validator-in-quorum' if prev_validators_in_quorum[i - validators_in_quorum|length] in protx_in_second_table else '' }}">
-                    {{ prev_validators_in_quorum[i - validators_in_quorum|length] }}
-                </span>
-            {% else %}
-                &nbsp;
-            {% endif %}
-        </td>
-    
-        <!-- Kolumna z wysokościami bloków -->
-        <td>
-            {% if i < displayed_blocks|length %}
-                {{ displayed_blocks[i].height }}
-            {% else %}
-                &nbsp;
-            {% endif %}
-        </td>
-    
-        <!-- Kolumna z proposerami bloków -->
-        <td>
-            {% if i < displayed_blocks|length %}
-                <span class="{{ 'validator-in-quorum' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }} {{ 'green bold' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }}">
-                    {{ displayed_blocks[i].proposer_pro_tx_hash }}
-                </span>
-            {% else %}
-                &nbsp;
-            {% endif %}
-        </td>
-    </tr>
-    {% endfor %}
-       
+    <th style="width: 10%;">#</th>
+    <th style="width: 40%;">Validators in Quorum</th>
+    <th style="width: 10%;">Block Height</th>
+    <th style="width: 40%;">Proposer</th>
+</tr>
+{% for i in range(max_length) %}
+<tr>
+    <td>{{ i + 1 }}</td>
+
+    <!-- Kolumna z walidatorami -->
+    <td>
+        {% if i < validators_in_quorum|length %}
+            <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
+                {{ validators_in_quorum[i] }}
+            </span>
+        {% elif i - validators_in_quorum|length < prev_validators_in_quorum|length %}
+            <!-- Dodanie klasy light-grey dla prevValidatorsInQuorum -->
+            <span class="light-grey {{ 'validator-in-quorum' if prev_validators_in_quorum[i - validators_in_quorum|length] in protx_in_second_table else '' }}">
+                {{ prev_validators_in_quorum[i - validators_in_quorum|length] }}
+            </span>
+        {% else %}
+            &nbsp;
+        {% endif %}
+    </td>
+
+    <!-- Kolumna z wysokościami bloków -->
+    <td>
+        {% if i < displayed_blocks|length %}
+            {{ displayed_blocks[i].height }}
+        {% else %}
+            &nbsp;
+        {% endif %}
+    </td>
+
+    <!-- Kolumna z proposerami bloków -->
+    <td>
+        {% if i < displayed_blocks|length %}
+            <span class="{{ 'validator-in-quorum' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }} {{ 'green bold' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }}">
+                {{ displayed_blocks[i].proposer_pro_tx_hash }}
+            </span>
+        {% else %}
+            &nbsp;
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}
+
     </table>
 
     </body>
