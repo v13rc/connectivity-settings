@@ -152,9 +152,14 @@ def display_validators():
     current_time = datetime.now().astimezone(timezone(timedelta(hours=1))).strftime("%Y-%m-%d %H:%M:%S")
     server_names = sorted(heartbeat_data.keys())
 
-    # Pobierz dane dla serwera
-    selected_server_name = 'andy'
-    selected_server_data = heartbeat_data.get(selected_server_name, {})
+    # Pobierz pierwszy serwer z heartbeat_data
+    if heartbeat_data:
+        selected_server_name = next(iter(heartbeat_data))  # Pobiera pierwszy klucz (nazwę serwera)
+        selected_server_data = heartbeat_data.get(selected_server_name, {})
+    else:
+        selected_server_name = None
+        selected_server_data = {}
+
     blocks = selected_server_data.get('blocks', [])
     
     # Posortuj bloki malejąco po wysokości
