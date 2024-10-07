@@ -44,6 +44,11 @@ def load_from_file(filename):
         with open(filename, 'r') as f:
             logging.debug(f"Loading data from file {filename}.")
             data = json.load(f)
+
+            # Wsteczna kompatybilność – upewnij się, że każde serwer zawiera pole 'blocks'
+            for server_name, server_data in data.items():
+                if 'blocks' not in server_data:
+                    server_data['blocks'] = []
             logging.debug(f"Data loaded successfully: {data}")
             return data
     except json.JSONDecodeError as e:
@@ -52,7 +57,6 @@ def load_from_file(filename):
     except Exception as e:
         logging.critical(f"Error loading data from {filename}: {e}")
         return {}
-
 
 def save_to_file(data, filename):
     """Save data to a file and return JSON with the result status."""
@@ -94,7 +98,6 @@ def time_ago_from_minutes_seconds(timestamp):
     is_alert = minutes > 30
     return f"{int(minutes)}m {int(seconds)}s", is_alert
 
-
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
     global heartbeat_data
@@ -103,23 +106,42 @@ def heartbeat():
 
     server_name = data.get('serverName')
     if server_name:
-        # Save the report time as a UTC timestamp
+        # Zapisz czas raportowania jako znacznik czasu UTC
         data['lastReportTime'] = datetime.now(timezone.utc).timestamp()
+
+        # Pobierz istniejące dane serwera, jeśli istnieją
+        existing_data = heartbeat_data.get(server_name, {})
+        
+        # Obsługa bloków
+        new_blocks = data.get('blocks', [])
+        existing_blocks = existing_data.get('blocks', [])
+        
+        # Dodaj nowe bloki do istniejących bloków
+        combined_blocks = existing_blocks + new_blocks
+
+        # Usuń duplikaty bloków na podstawie `height` i posortuj malejąco
+        unique_blocks = {block['height']: block for block in combined_blocks}.values()
+        sorted_blocks = sorted(unique_blocks, key=lambda b: b['height'], reverse=True)
+
+        # Przechowuj maksymalnie 500 bloków
+        data['blocks'] = sorted_blocks[:500]
+
+        # Zapisz dane serwera
         heartbeat_data[server_name] = data
-        # Save data to file and get the result
+
+        # Zapisz dane do pliku i zwróć wynik
         result = save_to_file(heartbeat_data, HEARTBEAT_FILE)
 
-        # Determine the HTTP status code based on the result of file saving
+        # Zwróć odpowiedni kod statusu HTTP na podstawie wyniku zapisu
         status_code = 200 if result["status"] == "success" else 500
 
-        # Return JSON response with detailed message about the file saving result
+        # Zwróć odpowiedź JSON z wynikiem operacji zapisu
         logging.debug(f"Heartbeat data processed with status: {result['status']}.")
         return jsonify(result), status_code
     else:
         logging.debug("Invalid data format for heartbeat.")
-        # Return error message if the input data format is invalid
+        # Zwróć komunikat błędu, jeśli format danych wejściowych jest nieprawidłowy
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
-
 
 @app.route('/', methods=['GET'])
 def display_validators():
@@ -470,6 +492,17 @@ def display_validators():
                 <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
             </tr>
             {% endfor %}
+            <tr>
+                <td class="bold">Blocks (Latest 5)</td>
+                {% for server in server_names %}
+                <td>
+                {% for block in heartbeat_data[server].get('blocks', [])[:5] %}
+                Height: {{ block.height }}<br>
+                Proposer: {{ block.proposer_pro_tx_hash }}<br><br>
+                {% endfor %}
+                </td>
+                {% endfor %}
+            </tr>
         </table>
     </body>
     </html>
