@@ -494,8 +494,7 @@ def display_validators():
         </table>
 
        <!-- Połączona tabela z walidatorami i blokami -->
-    <!-- Połączona tabela z walidatorami i blokami -->
-    <!-- Połączona tabela z walidatorami i blokami -->
+       <!-- Połączona tabela z walidatorami i blokami -->
 <table style="width: 100%; table-layout: fixed;">
     <tr>
         <th style="width: 10%;">#</th>
@@ -530,21 +529,7 @@ def display_validators():
         <!-- Kolumna z proposerami bloków -->
         <td>
             {% if i < displayed_blocks|length %}
-                {% set proposer = displayed_blocks[i].proposer_pro_tx_hash %}
-
-                <!-- Przejście po wszystkich serwerach i porównanie z proTxHash -->
-                {% for server_name in server_names %}
-                    {% set server_pro_tx = heartbeat_data[server_name].proTxHash %}
-                    {% if proposer == server_pro_tx %}
-                        <span class="green bold">{{ proposer }}</span>
-                        {% break %}
-                    {% endif %}
-                {% endfor %}
-                
-                <!-- Jeśli żaden serwer nie pasuje, wyświetl normalnie -->
-                {% if proposer != server_pro_tx %}
-                    {{ proposer }}
-                {% endif %}
+                {{ displayed_blocks[i].proposer_pro_tx_hash }}
             {% else %}
                 &nbsp;
             {% endif %}
@@ -552,7 +537,6 @@ def display_validators():
     </tr>
     {% endfor %}
 </table>
-
 
 
     </body>
