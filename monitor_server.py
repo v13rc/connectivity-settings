@@ -498,8 +498,8 @@ def display_validators():
             <tr>
                 <th style="width: 10%;">#</th>
                 <th style="width: 40%;">Validators in Quorum</th>
-                <th style="width: 25%;">Block Height</th>
-                <th style="width: 25%;">Proposer</th>
+                <th style="width: 10%;">Block Height</th>
+                <th style="width: 40%;">Proposer</th>
             </tr>
             {% for i in range(max_length) %}
             <tr>
