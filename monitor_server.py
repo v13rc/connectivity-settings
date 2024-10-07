@@ -496,10 +496,10 @@ def display_validators():
         <!-- Połączona tabela z walidatorami i blokami -->
         <table style="width: 100%; table-layout: fixed;">
             <tr>
-                <th style="width: 10%;">#</th>
-                <th style="width: 40%;">Validators in Quorum</th>
+                <th style="width: 5%;">#</th>
+                <th style="width: 45%;">Validators in Quorum</th>
                 <th style="width: 5%;">Block Height</th>
-                <th style="width: 40%;">Proposer</th>
+                <th style="width: 45%;">Proposer</th>
             </tr>
             {% for i in range(max_length) %}
             <tr>
