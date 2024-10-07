@@ -491,39 +491,51 @@ def display_validators():
             </tr>
         </table>
 
-        <!-- Kontener dla tabel -->
-        <div style="display: flex; justify-content: space-between; gap: 20px;">
+       <!-- Połączona tabela z walidatorami i blokami -->
+        <table style="width: 100%;">
+            <tr>
+                <th style="width: 10%;">#</th>
+                <th style="width: 40%;">Validators in Quorum</th>
+                <th style="width: 25%;">Block Height</th>
+                <th style="width: 25%;">Proposer</th>
+            </tr>
+            {% for i in range(max(validators_in_quorum|length, displayed_blocks|length)) %}
+            <tr>
+                <td>{{ i + 1 }}</td>
         
-            <!-- Validators in Quorum Table -->
-            <table style="width: 48%;">
-                <tr>
-                    <th style="width: calc(100% / 12);">#</th>
-                    <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th>
-                </tr>
-                {% for validator in validators_in_quorum %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
-                </tr>
-                {% endfor %}
-            </table>
+                <!-- Kolumna z walidatorami -->
+                <td>
+                    {% if i < validators_in_quorum|length %}
+                        <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
+                            {{ validators_in_quorum[i] }}
+                        </span>
+                    {% else %}
+                        <!-- Puste miejsce jeśli brak danych -->
+                        &nbsp;
+                    {% endif %}
+                </td>
         
-            <!-- Tabela z blokami i proposerami -->
-            <table style="width: 48%;">
-                <tr>
-                    <th style="width: 50%;">Block Height</th>
-                    <th style="width: 50%;">Proposer</th>
-                </tr>
-                {% for block in displayed_blocks %}
-                <tr>
-                    <td>{{ block.height }}</td>
-                    <td>{{ block.proposer_pro_tx_hash }}</td>
-                </tr>
-                {% endfor %}
-            </table>
+                <!-- Kolumna z wysokościami bloków -->
+                <td>
+                    {% if i < displayed_blocks|length %}
+                        {{ displayed_blocks[i].height }}
+                    {% else %}
+                        &nbsp;
+                    {% endif %}
+                </td>
         
-        </div>
-        
+                <!-- Kolumna z proposerami bloków -->
+                <td>
+                    {% if i < displayed_blocks|length %}
+                        {{ displayed_blocks[i].proposer_pro_tx_hash }}
+                    {% else %}
+                        &nbsp;
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
     </body>
     </html>
     """
