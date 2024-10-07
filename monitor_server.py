@@ -181,8 +181,17 @@ def display_validators():
     
     # Wyświetl maksymalnie 1000 bloków
     displayed_blocks = sorted_blocks[:1000]
-   
-    # Aggregate data calculations
+
+    # Przygotowanie validatorsInQuorum i prevValidatorsInQuorum dla wszystkich serwerów
+    validators_in_quorum = []
+    prev_validators_in_quorum = []
+
+    for server in heartbeat_data.values():
+        # Odwrócenie list validatorsInQuorum i prevValidatorsInQuorum przed przekazaniem
+        validators_in_quorum = list(reversed(server.get('validatorsInQuorum', [])))
+        prev_validators_in_quorum = list(reversed(server.get('prevValidatorsInQuorum', [])))
+
+    # Other existing aggregate data calculations
     masternodes = 0
     evonodes = 0
     ok_evonodes = 0
@@ -195,9 +204,7 @@ def display_validators():
     latest_block_height = 0
     epoch_start_time = 0
 
-    # Find the Evonode with the highest platform block height to fetch validatorsInQuorum
     highest_platform_block_height = 0
-    validators_in_quorum = []
     latest_block_validator = None
 
     for server, data in heartbeat_data.items():
@@ -231,7 +238,10 @@ def display_validators():
     epoch_start_human = format_timestamp(epoch_start_time)
     epoch_end_time = datetime.fromtimestamp(epoch_start_time / 1000, tz=timezone.utc) + timedelta(days=9.125)
     epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=2))).strftime('%b %d %H:%M')
-    max_length = max(len(validators_in_quorum), len(displayed_blocks))
+    
+    # Poprawiona logika obliczania max_length: suma validatorów oraz porównanie z liczbą bloków
+    max_length = max(len(validators_in_quorum) + len(prev_validators_in_quorum), len(displayed_blocks))
+
     num_unique_validators = len({block["proposer_pro_tx_hash"] for block in blocks})
     t_share = (evonodes / num_unique_validators) * 100 if num_unique_validators > 0 else 0
 
@@ -258,10 +268,6 @@ def display_validators():
             alerts[server].append(f"ALERT_PENALTY_{server.upper()}")
         if data.get('poSeBanHeight', -1) != -1:
             alerts[server].append(f"ALERT_{server.upper()}_POSEBAN")
-        #if data.get('p2pPortState', 'OPEN') != 'OPEN':
-        #    alerts[server].append(f"ALERT_{server.upper()}_P2P")
-        #if data.get('httpPortState', 'OPEN') != 'OPEN':
-        #    alerts[server].append(f"ALERT_{server.upper()}_HTTP")
         if data.get('produceBlockStatus', '') == 'ERROR':
             alerts[server].append(f"ALERT_{server.upper()}_BLOCKSTATUS")
         last_report_time, is_alert = time_ago_from_minutes_seconds(data.get('lastReportTime', 0))
@@ -531,48 +537,57 @@ def display_validators():
 
         <!-- Połączona tabela z walidatorami i blokami -->
             <table>
-        <tr>
-            <th style="width: 10%;">#</th>
-            <th style="width: 40%;">Validators in Quorum</th>
-            <th style="width: 10%;">Block Height</th>
-            <th style="width: 40%;">Proposer</th>
-        </tr>
-        {% for i in range(max_length) %}
-        <tr>
-            <td>{{ i + 1 }}</td>
+            <tr>
+        <th style="width: 10%;">#</th>
+        <th style="width: 40%;">Validators in Quorum</th>
+        <th style="width: 10%;">Block Height</th>
+        <th style="width: 40%;">Proposer</th>
+    </tr>
+    {% for i in range(max_length) %}
+    <tr>
+        <td>{{ i + 1 }}</td>
     
-            <!-- Kolumna z walidatorami -->
-            <td>
-                {% if i < validators_in_quorum|length %}
-                    <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
-                        {{ validators_in_quorum[i] }}
-                    </span>
-                {% else %}
-                    &nbsp;
-                {% endif %}
-            </td>
+        <!-- Kolumna z walidatorami -->
+        <td>
+            {% if i < validators_in_quorum|length %}
+                <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
+                    {{ validators_in_quorum[i] }}
+                </span>
+            {% else %}
+                &nbsp;
+            {% endif %}
+            
+            <!-- Wyświetlenie prevValidatorsInQuorum -->
+            {% if i < prev_validators_in_quorum|length %}
+                <span class="light-grey {{ 'validator-in-quorum' if prev_validators_in_quorum[i] in protx_in_second_table else '' }}">
+                    {{ prev_validators_in_quorum[i] }}
+                </span>
+            {% else %}
+                &nbsp;
+            {% endif %}
+        </td>
     
-            <!-- Kolumna z wysokościami bloków -->
-            <td>
-                {% if i < displayed_blocks|length %}
-                    {{ displayed_blocks[i].height }}
-                {% else %}
-                    &nbsp;
-                {% endif %}
-            </td>
+        <!-- Kolumna z wysokościami bloków -->
+        <td>
+            {% if i < displayed_blocks|length %}
+                {{ displayed_blocks[i].height }}
+            {% else %}
+                &nbsp;
+            {% endif %}
+        </td>
     
-            <!-- Kolumna z proposerami bloków -->
-            <td>
-                {% if i < displayed_blocks|length %}
-                    <span class="{{ 'validator-in-quorum' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }} {{ 'green bold' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }}">
-                        {{ displayed_blocks[i].proposer_pro_tx_hash }}
-                    </span>
-                {% else %}
-                    &nbsp;
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
+        <!-- Kolumna z proposerami bloków -->
+        <td>
+            {% if i < displayed_blocks|length %}
+                <span class="{{ 'validator-in-quorum' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }} {{ 'green bold' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }}">
+                    {{ displayed_blocks[i].proposer_pro_tx_hash }}
+                </span>
+            {% else %}
+                &nbsp;
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
     </table>
 
     </body>
