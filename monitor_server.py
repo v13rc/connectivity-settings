@@ -126,6 +126,19 @@ def heartbeat():
         # Przechowuj maksymalnie 1000 bloków
         data['blocks'] = sorted_blocks[:1000]
 
+        # Sprawdź, czy otrzymaliśmy nowe wartości validatorsInQuorum i czy są one niepuste
+        new_validators_in_quorum = data.get('validatorsInQuorum', [])
+        existing_validators_in_quorum = existing_data.get('validatorsInQuorum', [])
+
+        if new_validators_in_quorum and new_validators_in_quorum != existing_validators_in_quorum:
+            # Jeśli validatorsInQuorum się zmieniło i nowe wartości nie są puste, zapisz stare w prevValidatorsInQuorum
+            logging.debug(f"validatorsInQuorum has changed for server {server_name} and new values are not empty. Saving previous state.")
+            data['prevValidatorsInQuorum'] = existing_validators_in_quorum
+        
+        # Zapisz nowe wartości w validatorsInQuorum tylko, jeśli są niepuste
+        if new_validators_in_quorum:
+            data['validatorsInQuorum'] = new_validators_in_quorum
+
         # Zapisz dane serwera
         heartbeat_data[server_name] = data
 
@@ -142,6 +155,7 @@ def heartbeat():
         logging.debug("Invalid data format for heartbeat.")
         # Zwróć komunikat błędu, jeśli format danych wejściowych jest nieprawidłowy
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
+
 
 @app.route('/', methods=['GET'])
 def display_validators():
