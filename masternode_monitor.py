@@ -257,9 +257,10 @@ def main(report_url, verbose=False):
 
     # Step 10: Fetch blocks from blockchain and extract height and proposer_pro_tx_hash
     blocks_response = run_command(
-        "curl -s http://127.0.0.1:26657/blockchain | jq '.result.block_metas[] | {height: .header.height, proposer_pro_tx_hash: .header.proposer_pro_tx_hash}'",
+        "curl -s http://127.0.0.1:26657/blockchain | jq '.block_metas[] | {height: .header.height, proposer_pro_tx_hash: .header.proposer_pro_tx_hash}'",
         verbose
     )
+
     try:
         blocks = json.loads(f"[{blocks_response.replace('}{', '},{')}]") if blocks_response else []
     except json.JSONDecodeError:
