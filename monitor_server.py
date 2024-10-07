@@ -492,17 +492,6 @@ def display_validators():
                 <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
             </tr>
             {% endfor %}
-            <tr>
-                <td class="bold">Blocks (Latest 5)</td>
-                {% for server in server_names %}
-                <td>
-                {% for block in heartbeat_data[server].get('blocks', [])[:5] %}
-                Height: {{ block.height }}<br>
-                Proposer: {{ block.proposer_pro_tx_hash }}<br><br>
-                {% endfor %}
-                </td>
-                {% endfor %}
-            </tr>
         </table>
     </body>
     </html>
