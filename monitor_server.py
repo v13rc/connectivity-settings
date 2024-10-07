@@ -483,11 +483,13 @@ def display_validators():
         <!-- Validators in Quorum Table -->
         <table style="width: 100%;">
             <tr>
-                <th style="width: calc(100% / 12);">#</th>
-                <th style="width: calc(100% / 4);">Validator ProTxHash</th>
-                <th style="width: calc(100% / 6);">Block Height</th>
-                <th style="width: calc(100% / 6);">Proposer</th>
+                <th style="width: 10%;">#</th>
+                <th style="width: 40%;">Validator ProTxHash</th>
+                <th style="width: 25%;">Block Height</th>
+                <th style="width: 25%;">Proposer</th>
             </tr>
+        
+            {# Zbieranie wszystkich bloków z serwerów i sortowanie ich po wysokości (height) malejąco #}
             {% set all_blocks = [] %}
             {% for server in heartbeat_data.values() %}
                 {% set blocks = server.get('blocks', []) %}
@@ -497,11 +499,12 @@ def display_validators():
             {% endfor %}
             {% set sorted_blocks = all_blocks|sort(attribute='height', reverse=True) %}
         
-            {% for i in range(0, max(len(validators_in_quorum), 500)) %}
+            {# Wyświetlanie validatorów i bloków w jednej tabeli #}
+            {% for i in range(0, max(validators_in_quorum|length, sorted_blocks|length, 500)) %}
             <tr>
                 <td>{{ i + 1 }}</td>
         
-                {# Wyświetlamy validatora jeśli istnieje #}
+                {# Wyświetlanie validatora, jeśli istnieje #}
                 <td>
                     {% if i < validators_in_quorum|length %}
                         {{ validators_in_quorum[i] }}
@@ -510,7 +513,7 @@ def display_validators():
                     {% endif %}
                 </td>
         
-                {# Wyświetlamy block height i proposer jeśli istnieje #}
+                {# Wyświetlanie block height i proposer, jeśli istnieją #}
                 <td>
                     {% if i < sorted_blocks|length %}
                         {{ sorted_blocks[i]['height'] }}
@@ -528,7 +531,6 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
-
 
     </body>
     </html>
