@@ -264,9 +264,16 @@ def main(report_url, verbose=False):
     )
     
     try:
-        blocks = json.loads(blocks_response)
-        print_verbose(f"Parsed blocks: {blocks}", verbose)
-    except json.JSONDecodeError as e:
+        blockchain_data = json.loads(blocks_response)
+        blocks = []
+        for block_meta in blockchain_data.get("result", {}).get("block_metas", []):
+            block = {
+                "height": block_meta["header"]["height"],
+                "proposer_pro_tx_hash": block_meta["header"]["proposer_pro_tx_hash"].upper()
+            }
+            blocks.append(block)
+        print_verbose(f"Parsed blocks with height and proposer_pro_tx_hash: {blocks}", verbose)
+    except (json.JSONDecodeError, KeyError) as e:
         print(f"Error parsing blocks JSON: {e}")
         blocks = []
 
