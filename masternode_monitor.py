@@ -153,7 +153,7 @@ def main(report_url, verbose=False):
 
     # Step 3: Fetch current and previous epoch data
     epoch_info = run_command(
-        f"grpcurl -proto platform.proto -d '{{"v0": {{"count":2}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo",
+        f'grpcurl -proto platform.proto -d \'{{"v0": {{"count": 2}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo',
         verbose
     )
     if epoch_info:
@@ -174,7 +174,7 @@ def main(report_url, verbose=False):
 
     # Step 4: Fetch proposed blocks in the previous epoch
     previous_proposed_blocks = run_command(
-        f"grpcurl -proto platform.proto -d '{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
+        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
         verbose
     )
     if previous_proposed_blocks:
@@ -188,7 +188,7 @@ def main(report_url, verbose=False):
 
     # Step 5: Fetch proposed blocks in the current epoch
     current_proposed_blocks = run_command(
-        f"grpcurl -proto platform.proto -d '{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
+        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
         verbose
     )
     if current_proposed_blocks:
@@ -202,7 +202,7 @@ def main(report_url, verbose=False):
 
     # Step 6: Fetch balance for the node
     balance_response = run_command(
-        f"grpcurl -proto platform.proto -d '{{"v0": {{"id": "{platform_protx_hash}"}}}}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
+        f'grpcurl -proto platform.proto -d \'{{"v0": {{"id": "{platform_protx_hash}"}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance',
         verbose
     )
     if balance_response:
