@@ -494,7 +494,7 @@ def display_validators():
         </table>
 
         <!-- Połączona tabela z walidatorami i blokami -->
-        <table style="width: 100%; table-layout: fixed;">
+        <table>
             <tr>
                 <th style="width: 5%;">#</th>
                 <th style="width: 45%;">Validators in Quorum</th>
