@@ -219,6 +219,7 @@ def display_validators():
     epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=2))).strftime('%b %d %H:%M')
     max_length = max(len(validators_in_quorum), len(displayed_blocks))
     num_unique_validators = len({block["proposer_pro_tx_hash"] for block in blocks})
+    t_share = (evonodes / num_unique_validators) * 100 if num_unique_validators > 0 else 0
 
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -331,6 +332,8 @@ def display_validators():
                 <th>Dash</th>
                 <th>totalBlocks</th>
                 <th>share</th>
+                <th>t.share</th>
+                <th>allNodes</th> 
                 <th>epochNumber</th>
                 <th>firstBlock</th>
                 <th>latestBlock</th>
@@ -346,6 +349,8 @@ def display_validators():
                 <td>{{ '{:.8f}'.format(total_balance_dash) }}</td>
                 <td>{{ total_proposed_blocks }}</td>
                 <td>{{ '{:.2f}'.format(share_proposed_blocks) }}%</td>
+                <td>{{ '{:.2f}'.format(t_share) }}%</td>
+                <td>{{ num_unique_validators }}</td>
                 <td>{{ epoch_number }}</td>
                 <td>{{ epoch_first_block_height }}</td>
                 <td>{{ latest_block_height }}</td>
@@ -577,7 +582,9 @@ def display_validators():
         protx_in_second_table=protx_in_second_table,
         alerts=alerts,
         displayed_blocks=displayed_blocks,
-        max_length=max_length
+        max_length=max_length,
+        t_share=t_share,
+        num_unique_validators=num_unique_validators 
     )
 
 
