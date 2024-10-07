@@ -123,8 +123,8 @@ def heartbeat():
         unique_blocks = {block['height']: block for block in combined_blocks}.values()
         sorted_blocks = sorted(unique_blocks, key=lambda b: b['height'], reverse=True)
 
-        # Przechowuj maksymalnie 500 bloków
-        data['blocks'] = sorted_blocks[:500]
+        # Przechowuj maksymalnie 1000 bloków
+        data['blocks'] = sorted_blocks[:1000]
 
         # Zapisz dane serwera
         heartbeat_data[server_name] = data
@@ -165,8 +165,8 @@ def display_validators():
     # Posortuj bloki malejąco po wysokości
     sorted_blocks = sorted(blocks, key=lambda x: x['height'], reverse=True)
     
-    # Wyświetl maksymalnie 500 bloków
-    displayed_blocks = sorted_blocks[:500]
+    # Wyświetl maksymalnie 1000 bloków
+    displayed_blocks = sorted_blocks[:1000]
    
     # Aggregate data calculations
     masternodes = 0
@@ -218,8 +218,8 @@ def display_validators():
     epoch_end_time = datetime.fromtimestamp(epoch_start_time / 1000, tz=timezone.utc) + timedelta(days=9.125)
     epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=2))).strftime('%b %d %H:%M')
     max_length = max(len(validators_in_quorum), len(displayed_blocks))
-    reversed_validators_in_quorum = list(reversed(validators_in_quorum))
-    
+    num_unique_validators = len({block["proposer_pro_tx_hash"] for block in blocks})
+
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
         return '<br>'.join([protx[i:i+16] for i in range(0, len(protx), 16)])
@@ -568,7 +568,7 @@ def display_validators():
         epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
-        validators_in_quorum=reversed_validators_in_quorum,
+        validators_in_quorum=validators_in_quorum,
         format_protx=format_protx,
         get_node_type=get_node_type,
         convert_to_dash=convert_to_dash,
