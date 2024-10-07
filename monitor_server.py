@@ -492,31 +492,50 @@ def display_validators():
             <tr>
                 <td>{{ loop.index }}</td>
                 <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
-                
-                <!-- Wyświetl wysokość bloku i proponującego blok -->
+        
+                <!-- Zmienna tymczasowa do śledzenia znalezionego bloku -->
+                {% set block_found = false %}
+        
                 <td>
                     {% for server_data in heartbeat_data.values() %}
-                        {% for block in server_data.get('blocks', []) %}
-                            {% if block['proposer_pro_tx_hash'] == validator %}
-                                {{ block.height }}
-                                {% break %}
-                            {% endif %}
-                        {% endfor %}
+                        {% if not block_found %}
+                            {% for block in server_data.get('blocks', []) %}
+                                {% if block['proposer_pro_tx_hash'] == validator %}
+                                    {{ block.height }}
+                                    {% set block_found = true %}
+                                    {% break %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     {% endfor %}
+                    {% if not block_found %}
+                        N/A
+                    {% endif %}
                 </td>
+        
+                <!-- Zmienna tymczasowa do śledzenia proponującego blok -->
+                {% set proposer_found = false %}
+        
                 <td>
                     {% for server_data in heartbeat_data.values() %}
-                        {% for block in server_data.get('blocks', []) %}
-                            {% if block['proposer_pro_tx_hash'] == validator %}
-                                {{ block.proposer_pro_tx_hash }}
-                                {% break %}
-                            {% endif %}
-                        {% endfor %}
+                        {% if not proposer_found %}
+                            {% for block in server_data.get('blocks', []) %}
+                                {% if block['proposer_pro_tx_hash'] == validator %}
+                                    {{ block.proposer_pro_tx_hash }}
+                                    {% set proposer_found = true %}
+                                    {% break %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     {% endfor %}
+                    {% if not proposer_found %}
+                        N/A
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </table>
+
     </body>
     </html>
     """
