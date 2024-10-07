@@ -153,7 +153,7 @@ def main(report_url, verbose=False):
 
     # Step 3: Fetch current and previous epoch data
     epoch_info = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"count": 2}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo',
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"count\":2}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEpochsInfo",
         verbose
     )
     if epoch_info:
@@ -174,7 +174,7 @@ def main(report_url, verbose=False):
 
     # Step 4: Fetch proposed blocks in the previous epoch
     previous_proposed_blocks = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {previous_epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
         verbose
     )
     if previous_proposed_blocks:
@@ -188,7 +188,7 @@ def main(report_url, verbose=False):
 
     # Step 5: Fetch proposed blocks in the current epoch
     current_proposed_blocks = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
         verbose
     )
     if current_proposed_blocks:
@@ -202,7 +202,7 @@ def main(report_url, verbose=False):
 
     # Step 6: Fetch balance for the node
     balance_response = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"id": "{platform_protx_hash}"}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance',
+        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"id\": \"{platform_protx_hash}\"}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
         verbose
     )
     if balance_response:
@@ -255,20 +255,91 @@ def main(report_url, verbose=False):
         in_quorum = pro_tx_hash in active_validators_list
         print_verbose(f"Validator {pro_tx_hash} {'is' if in_quorum else 'is not'} in quorum.", verbose)
 
-    # Step 10: Fetch blocks from blockchain and extract height and proposer_pro_tx_hash
-    blocks_response = run_command(
-        "curl -s http://127.0.0.1:26657/blockchain | jq -s '[.block_metas[] | {height: .header.height, proposer_pro_tx_hash: .header.proposer_pro_tx_hash}]'",
-        verbose
-    )
-    
-    try:
-        blocks = json.loads(blocks_response)
-        print_verbose(f"Parsed blocks: {blocks}", verbose)
-    except json.JSONDecodeError as e:
-        print(f"Error parsing blocks JSON: {e}")
-        blocks = []
+    if in_quorum:
+        print_verbose(f"Validator {pro_tx_hash} is in quorum.", verbose)
+        if latest_block_validator == pro_tx_hash:
+            # Validator produced the block as expected
+            print_verbose(f"Validator {pro_tx_hash} produced block at height {latest_block_height}.", verbose)
+            set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", latest_block_height)
+            set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", latest_block_height)
+            last_produce_block_height = get_env_variable("LAST_PRODUCED_BLOCK_HEIGHT")
+            last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
+            produce_block_status = "OK"  # Set status to OK after setting block heights
+            print_verbose("Produce block status set to OK after producing expected block.", verbose)
+        else:
+            # Determine if validator should have produced the block
+            print_verbose("Checking if validator should have produced the block.", verbose)
+            if latest_block_validator > pro_tx_hash:
+                print_verbose(f"Validator {latest_block_validator} is greater than {pro_tx_hash}.", verbose)
+                latest_block_validator_index = validators_in_quorum.index(latest_block_validator)
+                pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash)
+                print_verbose(f"Validator {latest_block_validator} index: {latest_block_validator_index}, {pro_tx_hash} index: {pro_tx_hash_index}.", verbose)
 
-    # Step 11: Prepare the payload with available data
+                search_start = (latest_block_height - latest_block_validator_index) + pro_tx_hash_index
+                search_end = latest_block_height - 1
+
+                # Refresh the last should produce block height before checking
+                last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
+
+                # Display the variables being checked
+                print_verbose(f"Checking if search is necessary with LAST_SHOULD_PRODUCE_BLOCK_HEIGHT: {last_should_produce_block_height}, "
+                              f"search_start: {search_start}.", verbose)
+
+                # Check if searching is necessary based on last should produce block height
+                if last_should_produce_block_height and last_should_produce_block_height > search_start:
+                    print_verbose(
+                        f"LAST_SHOULD_PRODUCE_BLOCK_HEIGHT ({last_should_produce_block_height}) > search_start ({search_start}). "
+                        "Using existing values without further search.", verbose
+                    )
+                    # Skip searching and use current environment variables
+                    produce_block_status = "ERROR" if last_produce_block_height != last_should_produce_block_height else "OK"
+                    print_verbose(f"Produce block status set to {produce_block_status} based on existing values.", verbose)
+                else:
+                    print_verbose(f"Searching blocks from {search_start} to {search_end} to find {pro_tx_hash}.", verbose)
+
+                    # Binary search to find the block produced by the validator
+                    found_block = False
+                    left, right = search_start, search_end
+
+                    while left <= right:
+                        mid = (left + right) // 2
+                        result_validator = run_command(
+                            f"curl -s http://127.0.0.1:26657/block?height={mid} | jq -r '.block.header.proposer_pro_tx_hash'",
+                            verbose
+                        )
+                        result_validator = result_validator.upper()
+                        print_verbose(f"Block {mid} proposed by {result_validator}.", verbose)
+
+                        # Update LAST_SHOULD_PRODUCE_BLOCK_HEIGHT at each step
+                        set_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT", mid)
+                        last_should_produce_block_height = mid
+
+                        if result_validator == pro_tx_hash:
+                            # Block found, update LAST_PRODUCED_BLOCK_HEIGHT
+                            set_env_variable("LAST_PRODUCED_BLOCK_HEIGHT", mid)
+                            last_produce_block_height = mid
+                            found_block = True
+                            produce_block_status = "OK"  # Set status to OK after finding block
+                            print_verbose(f"Validator {pro_tx_hash} found producing block at height {mid}.", verbose)
+                            print_verbose("Produce block status set to OK after finding block.", verbose)
+                            break
+                        elif result_validator < pro_tx_hash:
+                            left = mid + 1
+                            print_verbose(f"Validator {result_validator} is less than {pro_tx_hash}, searching right half.", verbose)
+                        else:
+                            right = mid - 1
+                            print_verbose(f"Validator {result_validator} is greater than {pro_tx_hash}, searching left half.", verbose)
+
+                    # If block was not found, set the status to ERROR
+                    if not found_block:
+                        produce_block_status = "ERROR"
+                        print_verbose("Block not found, produce block status set to ERROR.", verbose)
+
+            else:
+                # Log when latest_block_validator is less than pro_tx_hash
+                print_verbose(f"Validator {latest_block_validator} is less than {pro_tx_hash}.", verbose)
+
+    # Step 10: Prepare the payload with available data
     payload = {
         "serverName": run_command("whoami", verbose),
         "uptime": run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime", verbose),
@@ -301,17 +372,16 @@ def main(report_url, verbose=False):
         "balance": balance,
         "lastProduceBlockHeight": last_produce_block_height,
         "lastShouldProduceBlockHeight": last_should_produce_block_height,
-        "produceBlockStatus": produce_block_status,
-        "blocks": blocks
+        "produceBlockStatus": produce_block_status
     }
 
     # Filter out None values from the payload
     payload = {k: v for k, v in payload.items() if v is not None}
 
-    # Step 12: Send the report
+    # Step 11: Send the report
     post_json_data(report_url, payload, verbose)
 
-    # Step 13: Restart server if uptime is greater than 31 days and not in quorum
+    # Step 12: Restart server if uptime is greater than 31 days and not in quorum
     if in_quorum is False and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 31 * 86400:
         print("Restarting server...")
         run_command("sudo reboot", verbose)
