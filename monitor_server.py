@@ -127,8 +127,8 @@ def heartbeat():
         new_validators_in_quorum = data.get('validatorsInQuorum', [])
         existing_validators_in_quorum = existing_data.get('validatorsInQuorum', [])
 
-        #if new_validators_in_quorum: # and new_validators_in_quorum != existing_validators_in_quorum:
-        data['prevValidatorsInQuorum'] = existing_validators_in_quorum
+        if new_validators_in_quorum and new_validators_in_quorum != existing_validators_in_quorum:
+            data['prevValidatorsInQuorum'] = existing_validators_in_quorum
         
         # Zapisz nowe wartości w validatorsInQuorum tylko, jeśli są niepuste
         if new_validators_in_quorum:
