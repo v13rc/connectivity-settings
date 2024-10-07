@@ -481,18 +481,54 @@ def display_validators():
         </table>
 
         <!-- Validators in Quorum Table -->
-        <table style="width: 50%;">
+        <table style="width: 100%;">
             <tr>
                 <th style="width: calc(100% / 12);">#</th>
-                <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th>
+                <th style="width: calc(100% / 4);">Validator ProTxHash</th>
+                <th style="width: calc(100% / 6);">Block Height</th>
+                <th style="width: calc(100% / 6);">Proposer</th>
             </tr>
-            {% for validator in validators_in_quorum %}
+            {% set all_blocks = [] %}
+            {% for server in heartbeat_data.values() %}
+                {% set blocks = server.get('blocks', []) %}
+                {% for block in blocks %}
+                    {% set all_blocks = all_blocks + [block] %}
+                {% endfor %}
+            {% endfor %}
+            {% set sorted_blocks = all_blocks|sort(attribute='height', reverse=True) %}
+        
+            {% for i in range(0, max(len(validators_in_quorum), 500)) %}
             <tr>
-                <td>{{ loop.index }}</td>
-                <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
+                <td>{{ i + 1 }}</td>
+        
+                {# Wyświetlamy validatora jeśli istnieje #}
+                <td>
+                    {% if i < validators_in_quorum|length %}
+                        {{ validators_in_quorum[i] }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+        
+                {# Wyświetlamy block height i proposer jeśli istnieje #}
+                <td>
+                    {% if i < sorted_blocks|length %}
+                        {{ sorted_blocks[i]['height'] }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if i < sorted_blocks|length %}
+                        {{ sorted_blocks[i]['proposer_pro_tx_hash'] }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </table>
+
 
     </body>
     </html>
