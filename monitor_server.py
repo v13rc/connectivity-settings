@@ -532,10 +532,10 @@ def display_validators():
                 {% endfor %}
             </tr>
         </table>
-
+        
         <!-- Połączona tabela z walidatorami i blokami -->
-            <table>
-            <tr>
+        <table>
+        <tr>
         <th style="width: 10%;">#</th>
         <th style="width: 40%;">Validators in Quorum</th>
         <th style="width: 10%;">Block Height</th>
@@ -551,14 +551,9 @@ def display_validators():
                 <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
                     {{ validators_in_quorum[i] }}
                 </span>
-            {% else %}
-                &nbsp;
-            {% endif %}
-            
-            <!-- Wyświetlenie prevValidatorsInQuorum -->
-            {% if i < prev_validators_in_quorum|length %}
-                <span class="light-grey {{ 'validator-in-quorum' if prev_validators_in_quorum[i] in protx_in_second_table else '' }}">
-                    {{ prev_validators_in_quorum[i] }}
+            {% elif i - validators_in_quorum|length < prev_validators_in_quorum|length %}
+                <span class="light-grey {{ 'validator-in-quorum' if prev_validators_in_quorum[i - validators_in_quorum|length] in protx_in_second_table else '' }}">
+                    {{ prev_validators_in_quorum[i - validators_in_quorum|length] }}
                 </span>
             {% else %}
                 &nbsp;
@@ -586,6 +581,7 @@ def display_validators():
         </td>
     </tr>
     {% endfor %}
+       
     </table>
 
     </body>
