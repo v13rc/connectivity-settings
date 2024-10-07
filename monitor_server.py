@@ -492,7 +492,7 @@ def display_validators():
         </table>
 
        <!-- Połączona tabela z walidatorami i blokami -->
-        <table style="width: 100%;">
+        <table style="width: 100%; table-layout: fixed;">
             <tr>
                 <th style="width: 10%;">#</th>
                 <th style="width: 40%;">Validators in Quorum</th>
@@ -510,7 +510,6 @@ def display_validators():
                             {{ validators_in_quorum[i] }}
                         </span>
                     {% else %}
-                        <!-- Puste miejsce jeśli brak danych -->
                         &nbsp;
                     {% endif %}
                 </td>
@@ -535,6 +534,7 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
+
 
     </body>
     </html>
