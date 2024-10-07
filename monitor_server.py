@@ -130,7 +130,7 @@ def heartbeat():
         new_validators_in_quorum = data.get('validatorsInQuorum', [])
         existing_validators_in_quorum = existing_data.get('validatorsInQuorum', [])
 
-        if new_validators_in_quorum and new_validators_in_quorum != existing_validators_in_quorum:
+        if new_validators_in_quorum:
             # Jeśli validatorsInQuorum się zmieniło i nowe wartości nie są puste, zapisz stare w prevValidatorsInQuorum
             logging.debug(f"validatorsInQuorum has changed for server {server_name} and new values are not empty. Saving previous state.")
             data['prevValidatorsInQuorum'] = existing_validators_in_quorum
