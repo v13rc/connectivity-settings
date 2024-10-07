@@ -262,16 +262,16 @@ def main(report_url, verbose=False):
     blocks_response = run_command(
         ["curl", "-s", "http://127.0.0.1:26657/blockchain"]
     )
-    
+
     try:
         blockchain_data = json.loads(blocks_response)
-        blocks = []
-        for block_meta in blockchain_data.get("result", {}).get("block_metas", []):
-            block = {
+        blocks = [
+            {
                 "height": block_meta["header"]["height"],
                 "proposer_pro_tx_hash": block_meta["header"]["proposer_pro_tx_hash"].upper()
             }
-            blocks.append(block)
+            for block_meta in blockchain_data.get("result", {}).get("block_metas", [])
+        ]
         print_verbose(f"Parsed blocks with height and proposer_pro_tx_hash: {blocks}", verbose)
     except (json.JSONDecodeError, KeyError) as e:
         print(f"Error parsing blocks JSON: {e}")
@@ -311,7 +311,7 @@ def main(report_url, verbose=False):
         "lastProduceBlockHeight": last_produce_block_height,
         "lastShouldProduceBlockHeight": last_should_produce_block_height,
         "produceBlockStatus": produce_block_status,
-        "blocks": blocks
+        "blocks": blocks  # Only height and proposer_pro_tx_hash in each block
     }
 
     # Filter out None values from the payload
