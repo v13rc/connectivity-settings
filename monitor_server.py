@@ -3,6 +3,7 @@ from flask import Flask, request, render_template_string, jsonify
 from datetime import datetime, timedelta, timezone
 import logging
 import json
+import fcntl
 
 # Import blueprint from monitor_server_routes.py
 from monitor_server_routes import monitor_routes_bp
@@ -42,14 +43,10 @@ def load_from_file(filename):
 
     try:
         with open(filename, 'r') as f:
+            fcntl.flock(f, fcntl.LOCK_SH)  # Zakładanie blokady współdzielonej dla odczytu
             logging.debug(f"Loading data from file {filename}.")
             data = json.load(f)
-
-            # Wsteczna kompatybilność – upewnij się, że każde serwer zawiera pole 'blocks'
-            for server_name, server_data in data.items():
-                if 'blocks' not in server_data:
-                    server_data['blocks'] = []
-            logging.debug(f"Data loaded successfully: {data}")
+            fcntl.flock(f, fcntl.LOCK_UN)  # Zwolnienie blokady
             return data
     except json.JSONDecodeError as e:
         logging.critical(f"JSON decode error for file {filename}: {e}")
@@ -65,19 +62,19 @@ def save_to_file(data, filename):
         logging.debug(f"Attempting to save to temporary file {temp_filename}.")
 
         with open(temp_filename, 'w') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)  # Zakładanie wyłącznej blokady dla zapisu
             json.dump(data, f, indent=4, ensure_ascii=False)
+            fcntl.flock(f, fcntl.LOCK_UN)  # Zwolnienie blokady
 
-        os.replace(temp_filename, filename)
+        os.replace(temp_filename, filename)  # Atomowa operacja zamiany plików
         logging.debug(f"Successfully saved data to {filename}.")
         return {"status": "success", "message": f"Data saved successfully to {filename}."}
 
     except Exception as e:
         logging.critical(f"Error saving data to {filename}: {e}")
-
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
         return {"status": "error", "message": f"Error saving data to {filename}: {e}"}
-
 
 def convert_to_dash(credits):
     """Convert credits to Dash."""
