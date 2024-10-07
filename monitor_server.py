@@ -466,6 +466,18 @@ def display_validators():
                 {% endfor %}
             </tr>
             <tr>
+                <td class="bold">Credits</td>
+                {% for server in server_names %}
+                <td>{{ heartbeat_data[server].get('balance', 'N/A') }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
+                <td class="bold">Dash</td>
+                {% for server in server_names %}
+                <td>{{ '{:.8f}'.format(heartbeat_data[server].get('balance', 0) / 100000000000) }}</td>
+                {% endfor %}
+            </tr>
+            <tr>
                 <td class="bold">inQuorum</td>
                 {% for server in server_names %}
                 <td class="{{ 'green' if heartbeat_data[server].get('inQuorum', False) else '' }}">{{ heartbeat_data[server].get('inQuorum', 'N/A') }}</td>
