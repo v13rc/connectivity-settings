@@ -500,6 +500,7 @@ def display_validators():
             </tr>
             {% endfor %}
         </table>
+
     </body>
     </html>
     """
