@@ -339,7 +339,7 @@ def main(report_url, verbose=False):
                 print_verbose(f"Validator {latest_block_validator} is less than {pro_tx_hash}.", verbose)
 
     # Step 10: Prepare the payload with available data
-     payload = {
+    payload = {
         "serverName": run_command("whoami", verbose),
         "uptime": run_command("awk '{up=$1; print int(up/86400)\"d \"int((up%86400)/3600)\"h \"int((up%3600)/60)\"m \"int(up%60)\"s\"}' /proc/uptime", verbose),
         "uptimeInSeconds": int(float(run_command("awk '{print $1}' /proc/uptime", verbose))),
