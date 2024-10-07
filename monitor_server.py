@@ -481,15 +481,22 @@ def display_validators():
         </table>
 
         <!-- Validators in Quorum Table -->
-        <table style="width: 50%;">
+        <table style="width: 100%; border-collapse: collapse;">
             <tr>
-                <th style="width: calc(100% / 12);">#</th>
-                <th style="width: calc((100% / 12) * 4);">Validators in Quorum</th>
+                <th style="width: 5%;">#</th>
+                <th style="width: 35%;">Validator in Quorum</th>
+                <th style="width: 30%;">Block Height</th>
+                <th style="width: 30%;">Block Proposer</th>
             </tr>
             {% for validator in validators_in_quorum %}
             <tr>
                 <td>{{ loop.index }}</td>
                 <td class="{{ 'validator-in-quorum' if validator in protx_in_second_table else '' }} {{ 'highlight-latest' if validator == latest_block_validator else '' }}">{{ validator }}</td>
+                
+                <!-- Wyświetl wysokość bloku i proponującego blok -->
+                {% set block_info = next((block for server_data in heartbeat_data.values() for block in server_data.get('blocks', []) if block['proposer_pro_tx_hash'] == validator), None) %}
+                <td>{{ block_info.height if block_info else 'N/A' }}</td>
+                <td>{{ block_info.proposer_pro_tx_hash if block_info else 'N/A' }}</td>
             </tr>
             {% endfor %}
         </table>
