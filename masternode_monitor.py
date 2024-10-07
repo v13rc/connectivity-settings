@@ -174,7 +174,7 @@ def main(report_url, verbose=False):
 
     # Step 4: Fetch proposed blocks in the previous epoch
     previous_proposed_blocks = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
+        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {previous_epoch_number}}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
         verbose
     )
     if previous_proposed_blocks:
@@ -188,7 +188,7 @@ def main(report_url, verbose=False):
 
     # Step 5: Fetch proposed blocks in the current epoch
     current_proposed_blocks = run_command(
-        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
+        f'grpcurl -proto platform.proto -d \'{{"v0": {{"ids": ["{platform_protx_hash}"], "epoch": {epoch_number}}}}}\' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds',
         verbose
     )
     if current_proposed_blocks:
