@@ -162,7 +162,7 @@ def display_validators():
     
     # Wyświetl maksymalnie 500 bloków
     displayed_blocks = sorted_blocks[:500]
-
+   
     # Aggregate data calculations
     masternodes = 0
     evonodes = 0
@@ -212,7 +212,8 @@ def display_validators():
     epoch_start_human = format_timestamp(epoch_start_time)
     epoch_end_time = datetime.fromtimestamp(epoch_start_time / 1000, tz=timezone.utc) + timedelta(days=9.125)
     epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=2))).strftime('%b %d %H:%M')
-
+    max_length = max(len(validators_in_quorum), len(displayed_blocks))
+    
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
         return '<br>'.join([protx[i:i+16] for i in range(0, len(protx), 16)])
@@ -499,7 +500,7 @@ def display_validators():
                 <th style="width: 25%;">Block Height</th>
                 <th style="width: 25%;">Proposer</th>
             </tr>
-            {% for i in range(max(validators_in_quorum|length, displayed_blocks|length)) %}
+            {% for i in range(max_length) %}
             <tr>
                 <td>{{ i + 1 }}</td>
         
@@ -535,7 +536,6 @@ def display_validators():
             {% endfor %}
         </table>
 
-
     </body>
     </html>
     """
@@ -568,7 +568,8 @@ def display_validators():
         latest_block_validator=latest_block_validator,
         protx_in_second_table=protx_in_second_table,
         alerts=alerts,
-        displayed_blocks=displayed_blocks
+        displayed_blocks=displayed_blocks,
+        max_length=max_length
     )
 
 
