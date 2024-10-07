@@ -494,7 +494,7 @@ def display_validators():
         </table>
 
         <!-- Połączona tabela z walidatorami i blokami -->
-        <table>
+            <table>
         <tr>
             <th style="width: 10%;">#</th>
             <th style="width: 40%;">Validators in Quorum</th>
@@ -528,7 +528,9 @@ def display_validators():
             <!-- Kolumna z proposerami bloków -->
             <td>
                 {% if i < displayed_blocks|length %}
-                    {{ displayed_blocks[i].proposer_pro_tx_hash }}
+                    <span class="{{ 'validator-in-quorum' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }} {{ 'green bold' if displayed_blocks[i].proposer_pro_tx_hash in protx_in_second_table else '' }}">
+                        {{ displayed_blocks[i].proposer_pro_tx_hash }}
+                    </span>
                 {% else %}
                     &nbsp;
                 {% endif %}
