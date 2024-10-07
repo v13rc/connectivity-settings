@@ -281,4 +281,47 @@ def main(report_url, verbose=False):
         "poSeBanHeight": po_se_ban_height,
         "lastPaidHeight": last_paid_height,
         "lastPaidTime": last_paid_time,
-        "
+        "paymentQueuePosition": payment_queue_position,
+        "nextPaymentTime": next_payment_time,
+        "proposedBlockInCurrentEpoch": proposed_block_in_current_epoch,
+        "proposedBlockInPreviousEpoch": proposed_block_in_previous_epoch,
+        "epochNumber": epoch_number,
+        "epochFirstBlockHeight": epoch_first_block_height,
+        "epochStartTime": epoch_start_time,
+        "previousEpochNumber": previous_epoch_number,
+        "previousEpochFirstBlockHeight": previous_epoch_first_block_height,
+        "previousEpochStartTime": previous_epoch_start_time,
+        "inQuorum": in_quorum,
+        "validatorsInQuorum": validators_in_quorum,
+        "latestBlockHash": latest_block_hash,
+        "latestBlockHeight": latest_block_height,
+        "latestBlockValidator": latest_block_validator,
+        "balance": balance,
+        "lastProduceBlockHeight": last_produce_block_height,
+        "lastShouldProduceBlockHeight": last_should_produce_block_height,
+        "produceBlockStatus": produce_block_status,
+        "blocks": blocks
+    }
+
+    # Filter out None values from the payload
+    payload = {k: v for k, v in payload.items() if v is not None}
+
+    # Step 12: Send the report
+    post_json_data(report_url, payload, verbose)
+
+    # Step 13: Restart server if uptime is greater than 31 days and not in quorum
+    if in_quorum is False and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 31 * 86400:
+        print("Restarting server...")
+        run_command("sudo reboot", verbose)
+
+if __name__ == "__main__":
+    verbose_mode = '-v' in sys.argv
+    if verbose_mode:
+        sys.argv.remove('-v')
+
+    if len(sys.argv) != 2:
+        print("Usage: python3 masternode_monitor.py <report_url> [-v]")
+        sys.exit(1)
+
+    report_url = sys.argv[1]
+    main(report_url, verbose_mode)
