@@ -213,6 +213,7 @@ def display_validators():
     epoch_end_time = datetime.fromtimestamp(epoch_start_time / 1000, tz=timezone.utc) + timedelta(days=9.125)
     epoch_end_human = epoch_end_time.astimezone(timezone(timedelta(hours=2))).strftime('%b %d %H:%M')
     max_length = max(len(validators_in_quorum), len(displayed_blocks))
+    reversed_validators_in_quorum = list(reversed(validators_in_quorum))
     
     # Helper function to format ProTxHash to wrap into four lines
     def format_protx(protx):
@@ -497,14 +498,14 @@ def display_validators():
             <tr>
                 <th style="width: 10%;">#</th>
                 <th style="width: 40%;">Validators in Quorum</th>
-                <th style="width: 25%;">Block Height</th>
-                <th style="width: 25%;">Proposer</th>
+                <th style="width: 10%;">Block Height</th>
+                <th style="width: 40%;">Proposer</th>
             </tr>
             {% for i in range(max_length) %}
             <tr>
                 <td>{{ i + 1 }}</td>
         
-                <!-- Kolumna z walidatorami -->
+                <!-- Kolumna z walidatorami (odwrócona kolejność) -->
                 <td>
                     {% if i < validators_in_quorum|length %}
                         <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
@@ -560,7 +561,7 @@ def display_validators():
         epoch_end_human=epoch_end_human,
         server_names=server_names,
         heartbeat_data=heartbeat_data,
-        validators_in_quorum=validators_in_quorum,
+        validators_in_quorum=reversed_validators_in_quorum,
         format_protx=format_protx,
         get_node_type=get_node_type,
         convert_to_dash=convert_to_dash,
