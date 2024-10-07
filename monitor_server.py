@@ -495,52 +495,64 @@ def display_validators():
 
        <!-- Połączona tabela z walidatorami i blokami -->
     <!-- Połączona tabela z walidatorami i blokami -->
-    <table style="width: 100%; table-layout: fixed;">
-        <tr>
-            <th style="width: 10%;">#</th>
-            <th style="width: 40%;">Validators in Quorum</th>
-            <th style="width: 10%;">Block Height</th>
-            <th style="width: 40%;">Proposer</th>
-        </tr>
-        {% for i in range(max_length) %}
-        <tr>
-            <td>{{ i + 1 }}</td>
-    
-            <!-- Kolumna z walidatorami (odwrócona kolejność) -->
-            <td>
-                {% if i < validators_in_quorum|length %}
-                    <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
-                        {{ validators_in_quorum[i] }}
-                    </span>
-                {% else %}
-                    &nbsp;
+    <!-- Połączona tabela z walidatorami i blokami -->
+<table style="width: 100%; table-layout: fixed;">
+    <tr>
+        <th style="width: 10%;">#</th>
+        <th style="width: 40%;">Validators in Quorum</th>
+        <th style="width: 10%;">Block Height</th>
+        <th style="width: 40%;">Proposer</th>
+    </tr>
+    {% for i in range(max_length) %}
+    <tr>
+        <td>{{ i + 1 }}</td>
+
+        <!-- Kolumna z walidatorami (odwrócona kolejność) -->
+        <td>
+            {% if i < validators_in_quorum|length %}
+                <span class="{{ 'validator-in-quorum' if validators_in_quorum[i] in protx_in_second_table else '' }} {{ 'highlight-latest' if validators_in_quorum[i] == latest_block_validator else '' }}">
+                    {{ validators_in_quorum[i] }}
+                </span>
+            {% else %}
+                &nbsp;
+            {% endif %}
+        </td>
+
+        <!-- Kolumna z wysokościami bloków -->
+        <td>
+            {% if i < displayed_blocks|length %}
+                {{ displayed_blocks[i].height }}
+            {% else %}
+                &nbsp;
+            {% endif %}
+        </td>
+
+        <!-- Kolumna z proposerami bloków -->
+        <td>
+            {% if i < displayed_blocks|length %}
+                {% set proposer = displayed_blocks[i].proposer_pro_tx_hash %}
+
+                <!-- Przejście po wszystkich serwerach i porównanie z proTxHash -->
+                {% for server_name in server_names %}
+                    {% set server_pro_tx = heartbeat_data[server_name].proTxHash %}
+                    {% if proposer == server_pro_tx %}
+                        <span class="green bold">{{ proposer }}</span>
+                        {% break %}
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Jeśli żaden serwer nie pasuje, wyświetl normalnie -->
+                {% if proposer != server_pro_tx %}
+                    {{ proposer }}
                 {% endif %}
-            </td>
-    
-            <!-- Kolumna z wysokościami bloków -->
-            <td>
-                {% if i < displayed_blocks|length %}
-                    {{ displayed_blocks[i].height }}
-                {% else %}
-                    &nbsp;
-                {% endif %}
-            </td>
-    
-            <!-- Kolumna z proposerami bloków -->
-            <td>
-                {% if i < displayed_blocks|length %}
-                    {% set proposer = displayed_blocks[i].proposer_pro_tx_hash %}
-                    {% set server_pro_tx = heartbeat_data[selected_server_name].proTxHash %}
-                    <span class="{% if proposer == server_pro_tx %}green bold{% endif %}">
-                        {{ proposer }}
-                    </span>
-                {% else %}
-                    &nbsp;
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+            {% else %}
+                &nbsp;
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
 
 
     </body>
