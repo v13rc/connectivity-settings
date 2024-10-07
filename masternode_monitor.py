@@ -107,6 +107,12 @@ def main(report_url, verbose=False):
     # Convert pro_tx_hash from hex to Base64 to get platform_protx_hash
     platform_protx_hash = hex_to_base64(pro_tx_hash)
 
+    # Extract service data and build platform_service_address
+    service = masternode_data.get("nodeState", {}).get("dmnState", {}).get("service", "")
+    node_address = service.split(":")[0]
+    platform_http_port = masternode_data.get("nodeState", {}).get("dmnState", {}).get("platformHTTPPort", "")
+    platform_service_address = f"{node_address}:{platform_http_port}"
+
     # Read additional required fields
     core_block_height = status_data.get("core", {}).get("blockHeight")
     latest_block_height = status_data.get("platform", {}).get("tenderdash", {}).get("latestBlockHeight")
