@@ -131,10 +131,16 @@ def heartbeat():
         new_validators_in_quorum = data.get('validatorsInQuorum', [])
         existing_validators_in_quorum = existing_data.get('validatorsInQuorum', [])
 
+        # Zachowaj istniejące wartości prevValidatorsInQuorum i prevValidatorsInQuorumHash, jeśli już istnieją
+        data['prevValidatorsInQuorum'] = existing_data.get('prevValidatorsInQuorum', [])
+        data['prevValidatorsInQuorumHash'] = existing_data.get('prevValidatorsInQuorumHash', '')
+
+        # Sprawdź, czy validatorsInQuorum się zmieniło
         if new_validators_in_quorum and new_validators_in_quorum != existing_validators_in_quorum:
+            # Zapisz stare validatorsInQuorum jako prevValidatorsInQuorum
             data['prevValidatorsInQuorum'] = existing_validators_in_quorum
             data['prevValidatorsInQuorumHash'] = calculate_hash(existing_validators_in_quorum)
-        
+
         # Zapisz nowe wartości w validatorsInQuorum tylko, jeśli są niepuste
         if new_validators_in_quorum:
             data['validatorsInQuorum'] = new_validators_in_quorum
@@ -156,7 +162,6 @@ def heartbeat():
         logging.debug("Invalid data format for heartbeat.")
         # Zwróć komunikat błędu, jeśli format danych wejściowych jest nieprawidłowy
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
-
 
 @app.route('/', methods=['GET'])
 def display_validators():
