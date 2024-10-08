@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import json
 import fcntl
+import hashlib
 
 # Import blueprint from monitor_server_routes.py
 from monitor_server_routes import monitor_routes_bp
@@ -34,6 +35,9 @@ if not os.path.exists('app_data'):
 else:
     logging.debug("Directory 'app_data' already exists.")
 
+def calculate_hash(data_list):
+    data_string = json.dumps(data_list, sort_keys=True) 
+    return hashlib.sha256(data_string.encode('utf-8')).hexdigest()
 
 def load_from_file(filename):
     """Load data from a file, returning an empty dictionary if the file does not exist."""
@@ -129,10 +133,12 @@ def heartbeat():
 
         if new_validators_in_quorum and new_validators_in_quorum != existing_validators_in_quorum:
             data['prevValidatorsInQuorum'] = existing_validators_in_quorum
+            data['prevValidatorsInQuorumHash'] = calculate_hash(existing_validators_in_quorum)
         
         # Zapisz nowe wartości w validatorsInQuorum tylko, jeśli są niepuste
         if new_validators_in_quorum:
             data['validatorsInQuorum'] = new_validators_in_quorum
+            data['validatorsInQuorumHash'] = calculate_hash(new_validators_in_quorum)
 
         # Zapisz dane serwera
         heartbeat_data[server_name] = data
@@ -206,7 +212,6 @@ def display_validators():
         platform_block_height = data.get('platformBlockHeight', 0)
         if platform_block_height > highest_platform_block_height:
             highest_platform_block_height = platform_block_height
-            validators_in_quorum = data.get('validatorsInQuorum', [])
             latest_block_validator = data.get('latestBlockValidator', None)
 
     for server in heartbeat_data.values():
