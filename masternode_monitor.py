@@ -291,10 +291,10 @@ def main(report_url, verbose=False):
         # Quorum hash has changed
         changed_quorum = True
         print_verbose("Validator quorum hash has changed.", verbose)
-    else:
-        # Save the current quorum hash to environment variables
-        set_env_variable("VALIDATOR_QUORUM_HASH", current_quorum_hash)
-        print_verbose("Validator quorum hash saved to environment variables.", verbose)
+        
+    # Save the current quorum hash to environment variables
+    set_env_variable("VALIDATOR_QUORUM_HASH", current_quorum_hash)
+    print_verbose("Validator quorum hash saved to environment variables.", verbose)
     
     if in_quorum:
         print_verbose(f"Validator {pro_tx_hash} is in quorum.", verbose)
