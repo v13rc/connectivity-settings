@@ -514,13 +514,13 @@ def display_validators():
             <tr>
                 <td class="bold">p2pPortState</td>
                 {% for server in server_names %}
-                <td class="{{ 'red-bold' if heartbeat_data[server].get('p2pPortState', 'OPEN') != 'OPEN' else '' }}">{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}{% if heartbeat_data[server].get('p2pPortState', 'OPEN') != 'OPEN' %}<span class="hidden">ALERT_{{ server.upper() }}_P2P</span>{% endif %}</td>
+                <td class="{{ 'red-bold' if heartbeat_data[server].get('p2pPortState', 'OPEN') != 'OPEN' else '' }}">{{ heartbeat_data[server].get('p2pPortState', 'N/A') }}{% if heartbeat_data[server].get('p2pPortState', 'OPEN') != 'OPEN' %}{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <td class="bold">httpPortState</td>
                 {% for server in server_names %}
-                <td class="{{ 'red-bold' if heartbeat_data[server].get('httpPortState', 'OPEN') != 'OPEN' else '' }}">{{ heartbeat_data[server].get('httpPortState', 'N/A') }}{% if heartbeat_data[server].get('httpPortState', 'OPEN') != 'OPEN' %}<span class="hidden">ALERT_{{ server.upper() }}_HTTP</span>{% endif %}</td>
+                <td class="{{ 'red-bold' if heartbeat_data[server].get('httpPortState', 'OPEN') != 'OPEN' else '' }}">{{ heartbeat_data[server].get('httpPortState', 'N/A') }}{% if heartbeat_data[server].get('httpPortState', 'OPEN') != 'OPEN' %}{% endif %}</td>
                 {% endfor %}
             </tr>
             <tr>
