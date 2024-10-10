@@ -3,8 +3,13 @@ import os
 import subprocess
 import sys
 import base64
+import hashlib
 
 # Funkcje pomocnicze
+
+def compute_hash(value):
+    """Compute the hash of a given string or list."""
+    return hashlib.sha256(str(value).encode()).hexdigest()
 
 def print_verbose(message, verbose):
     """Print message only in verbose mode."""
@@ -277,6 +282,20 @@ def main(report_url, verbose=False):
         in_quorum = pro_tx_hash in active_validators_list
         print_verbose(f"Validator {pro_tx_hash} {'is' if in_quorum else 'is not'} in quorum.", verbose)
 
+    # Get or initialize VALIDATOR_QUORUM_HASH
+    previous_quorum_hash = get_env_variable("VALIDATOR_QUORUM_HASH")
+    current_quorum_hash = compute_hash(validators_in_quorum)
+    changed_quorum = False
+    
+    if previous_quorum_hash and previous_quorum_hash != current_quorum_hash:
+        # Quorum hash has changed
+        changed_quorum = True
+        print_verbose("Validator quorum hash has changed.", verbose)
+    else:
+        # Save the current quorum hash to environment variables
+        set_env_variable("VALIDATOR_QUORUM_HASH", current_quorum_hash)
+        print_verbose("Validator quorum hash saved to environment variables.", verbose)
+    
     if in_quorum:
         print_verbose(f"Validator {pro_tx_hash} is in quorum.", verbose)
         if latest_block_validator == pro_tx_hash:
@@ -288,7 +307,7 @@ def main(report_url, verbose=False):
             last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
             produce_block_status = "OK"  # Set status to OK after setting block heights
             print_verbose("Produce block status set to OK after producing expected block.", verbose)
-        else:
+        elif not changed_quorum:  # Skip this block if quorum changed:
             # Determine if validator should have produced the block
             print_verbose("Checking if validator should have produced the block.", verbose)
             if latest_block_validator > pro_tx_hash:
@@ -360,6 +379,8 @@ def main(report_url, verbose=False):
             else:
                 # Log when latest_block_validator is less than pro_tx_hash
                 print_verbose(f"Validator {latest_block_validator} is less than {pro_tx_hash}.", verbose)
+        else:
+            print_verbose("Skipping block production check due to quorum change.", verbose)
 
     # Step 9.5: Fetch blockchain data and extract blocks information
     blocks = fetch_blockchain_data(verbose)
