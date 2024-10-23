@@ -428,10 +428,10 @@ def main(report_url, verbose=False):
     # Step 11: Send the report
     post_json_data(report_url, payload, verbose)
 
-    # Step 12: Restart server if uptime is greater than 3 days and not in quorum
-    if in_quorum is False and po_se_penalty == 0 and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 7 * 86400:
-        print("Restarting server...")
-        run_command("sudo reboot", verbose)
+    # Step 12: Restart server if uptime is greater than 7 days and not in quorum
+    #if in_quorum is False and po_se_penalty == 0 and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 7 * 86400:
+    #    print("Restarting server...")
+    #    run_command("sudo reboot", verbose)
 
 if __name__ == "__main__":
     verbose_mode = '-v' in sys.argv
