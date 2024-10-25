@@ -295,7 +295,15 @@ def main(report_url, verbose=False):
     # Save the current quorum hash to environment variables
     set_env_variable("VALIDATOR_QUORUM_HASH", current_quorum_hash)
     print_verbose("Validator quorum hash saved to environment variables.", verbose)
-    
+
+    # Set changing_quorum to True if the latest_block_validator is the last validator in the list.
+    # This indicates that the quorum might be changing, and further validation steps should be skipped.
+    changing_quorum = False
+    latest_block_validator_index = validators_in_quorum.index(latest_block_validator)
+    pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash)
+    if latest_block_validator_index == len(validators_in_quorum) - 1:
+        changing_quorum = True
+
     if in_quorum:
         print_verbose(f"Validator {pro_tx_hash} is in quorum.", verbose)
         if latest_block_validator == pro_tx_hash:
@@ -307,7 +315,7 @@ def main(report_url, verbose=False):
             last_should_produce_block_height = get_env_variable("LAST_SHOULD_PRODUCE_BLOCK_HEIGHT")
             produce_block_status = "OK"  # Set status to OK after setting block heights
             print_verbose("Produce block status set to OK after producing expected block.", verbose)
-        elif not changed_quorum:  # Skip this block if quorum changed:
+        elif not changed_quorum and not changing_quorum:
             # Determine if validator should have produced the block
             print_verbose("Checking if validator should have produced the block.", verbose)
             if latest_block_validator > pro_tx_hash:
