@@ -296,12 +296,18 @@ def main(report_url, verbose=False):
     set_env_variable("VALIDATOR_QUORUM_HASH", current_quorum_hash)
     print_verbose("Validator quorum hash saved to environment variables.", verbose)
 
-    # Set changing_quorum to True if the latest_block_validator is the last validator in the list.
-    # This indicates that the quorum might be changing, and further validation steps should be skipped.
+    # Set changing_quorum to True if the latest_block_validator is the last validator in the list,
+    # or if latest_block_validator is not in the validators_in_quorum, indicating a possible quorum change.
     changing_quorum = False
-    latest_block_validator_index = validators_in_quorum.index(latest_block_validator)
-    pro_tx_hash_index = validators_in_quorum.index(pro_tx_hash)
-    if latest_block_validator_index == len(validators_in_quorum) - 1:
+    
+    try:
+        latest_block_validator_index = validators_in_quorum.index(latest_block_validator)
+        
+        # Check if the latest_block_validator is the last in the list of validators
+        if latest_block_validator_index == len(validators_in_quorum) - 1:
+            changing_quorum = True
+    except ValueError:
+        # Set changing_quorum to True if latest_block_validator is not found in the validators_in_quorum list
         changing_quorum = True
 
     if in_quorum:
