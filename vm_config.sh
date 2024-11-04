@@ -18,6 +18,7 @@ apt install -y ufw fail2ban htop nano iputils-ping openvpn jq cron
 ufw allow 1194/udp
 ufw allow 1195/udp
 ufw allow 1196/udp
+ufw allow 1197/udp
 ufw allow 443
 ufw allow 80
 ufw allow 9999
