@@ -459,6 +459,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     report_url = sys.argv[1]
-    delay = random.randint(5, 240)
+    delay = random.randint(5, 60)
     time.sleep(delay)
     main(report_url, verbose_mode)
