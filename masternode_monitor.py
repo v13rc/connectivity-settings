@@ -4,6 +4,8 @@ import subprocess
 import sys
 import base64
 import hashlib
+import time
+import random
 
 # Funkcje pomocnicze
 
@@ -443,9 +445,9 @@ def main(report_url, verbose=False):
     post_json_data(report_url, payload, verbose)
 
     # Step 12: Restart server if uptime is greater than 7 days and not in quorum
-    if in_quorum is False and po_se_penalty == 0 and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 7 * 86400:
-        print("Restarting server...")
-        run_command("sudo reboot", verbose)
+    # if in_quorum is False and po_se_penalty == 0 and float(run_command("awk '{print $1}' /proc/uptime", verbose)) > 7 * 86400:
+    #    print("Restarting server...")
+    #    run_command("sudo reboot", verbose)
 
 if __name__ == "__main__":
     verbose_mode = '-v' in sys.argv
@@ -457,4 +459,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     report_url = sys.argv[1]
+    delay = random.randint(5, 240)
+    time.sleep(delay)
     main(report_url, verbose_mode)
