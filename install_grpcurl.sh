@@ -11,12 +11,22 @@ sudo apt install -y curl jq
 echo "Fetching the latest version of grpcurl..."
 LATEST_VERSION=$(curl -s https://api.github.com/repos/fullstorydev/grpcurl/releases/latest | jq -r '.tag_name')
 
-# Set variables for architecture and download URL
-ARCH="linux_x86_64"
+# Detect system architecture
+ARCH=$(uname -m)
+if [[ "$ARCH" == "x86_64" ]]; then
+    ARCH="linux_x86_64"
+elif [[ "$ARCH" == "aarch64" ]]; then
+    ARCH="linux_arm64"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
+
+# Set download URL
 URL="https://github.com/fullstorydev/grpcurl/releases/download/${LATEST_VERSION}/grpcurl_${LATEST_VERSION#v}_${ARCH}.tar.gz"
 
 # Download the grpcurl binary
-echo "Downloading grpcurl version $LATEST_VERSION..."
+echo "Downloading grpcurl version $LATEST_VERSION for architecture $ARCH..."
 curl -L $URL -o grpcurl.tar.gz
 
 # Extract the tar.gz file
