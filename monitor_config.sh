@@ -15,7 +15,7 @@ apt install -y ufw fail2ban htop nano iputils-ping python3 python3-pip python3-r
 [ $? -eq 0 ] && echo -e "${GREEN}Success install packages${NC}" || echo -e "${RED}Failed install packages${NC}"
 
 #Net configuration
-ufw allow 8080
+ufw allow 80
 ufw allow ssh/tcp
 ufw limit ssh/tcp
 ufw --force enable
