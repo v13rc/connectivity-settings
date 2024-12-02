@@ -202,19 +202,19 @@ def main(report_url, verbose=False):
             print(f"Error parsing epoch info JSON: {e}")
 
     # Step 4: Fetch proposed blocks in the previous epoch
-    previous_proposed_blocks = run_command(
-        f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {previous_epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
-        verbose
-    )
-    if previous_proposed_blocks:
-        try:
-            previous_blocks_json = json.loads(previous_proposed_blocks)
-            count_info = previous_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
-                "evonodesProposedBlockCounts", [])
-            proposed_block_in_previous_epoch = count_info[0].get("count", 0) if count_info else 0
-        except (json.JSONDecodeError, IndexError, KeyError):
-            proposed_block_in_previous_epoch = 0
-
+    #previous_proposed_blocks = run_command(
+    #    f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {previous_epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
+    #    verbose
+    #)
+    #if previous_proposed_blocks:
+    #    try:
+    #        previous_blocks_json = json.loads(previous_proposed_blocks)
+    #        count_info = previous_blocks_json.get("v0", {}).get("evonodesProposedBlockCountsInfo", {}).get(
+    #            "evonodesProposedBlockCounts", [])
+    #        proposed_block_in_previous_epoch = count_info[0].get("count", 0) if count_info else 0
+    #    except (json.JSONDecodeError, IndexError, KeyError):
+    #        proposed_block_in_previous_epoch = 0
+    
     # Step 5: Fetch proposed blocks in the current epoch
     current_proposed_blocks = run_command(
         f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"ids\": [\"{platform_protx_hash}\"], \"epoch\": {epoch_number}}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getEvonodesProposedEpochBlocksByIds",
