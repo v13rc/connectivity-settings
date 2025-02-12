@@ -163,7 +163,7 @@ def heartbeat():
         # Zwróć komunikat błędu, jeśli format danych wejściowych jest nieprawidłowy
         return jsonify({"status": "error", "message": "Invalid data format."}), 400
 
-@app.route('/', methods=['GET'])
+@app.route('/show', methods=['GET'])
 def display_validators():
     global heartbeat_data
     logging.debug("Loading heartbeat data from file.")
