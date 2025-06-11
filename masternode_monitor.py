@@ -7,7 +7,55 @@ import hashlib
 import time
 import random
 
-# Funkcje pomocnicze
+# Checking VPN functions
+
+def run_command(command, verbose=False):
+    """Run a shell command and return its output."""
+    if verbose:
+        print(f"Running command: {command}")
+    try:
+        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        if verbose:
+            print(f"Command output: {result.stdout.strip()}")
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print(f"Error running command {command}: {e}")
+        return None
+
+def check_dns_connectivity(verbose=False):
+    """Check if there is connectivity to DNS 8.8.8.8."""
+    if verbose:
+        print("Checking DNS connectivity...")
+    result = run_command("ping -c 1 8.8.8.8", verbose)
+    if result and "1 received" in result:
+        if verbose:
+            print("DNS connectivity is OK.")
+        return True
+    else:
+        if verbose:
+            print("DNS connectivity failed.")
+        return False
+
+def restart_openvpn_service(verbose=False):
+    """Restart the OpenVPN client service."""
+    if verbose:
+        print("Restarting OpenVPN service...")
+    result = run_command("sudo systemctl restart openvpn@client", verbose)
+    if verbose:
+        print(f"OpenVPN service restart result: {result}")
+
+def ensure_vpn_connectivity(verbose=False):
+    """Ensure VPN is connected by checking DNS and restarting if necessary."""
+    if not check_dns_connectivity(verbose):
+        print("No connectivity to DNS. Restarting OpenVPN service.")
+        restart_openvpn_service(verbose)
+        time.sleep(10)  # Give some time for the service to restart
+        if not check_dns_connectivity(verbose):
+            print("DNS connectivity is still not restored after restart.")
+        else:
+            print("DNS connectivity restored after restarting OpenVPN.")
+
+# Helpers
 
 def compute_hash(value):
     """Compute the hash of a given string or list."""
@@ -104,6 +152,10 @@ def fetch_blockchain_data(verbose=False):
         return []
 
 def main(report_url, verbose=False):
+
+    # Check VPN
+    ensure_vpn_connectivity(verbose)
+    
     # Load environment variables from ~/.bashrc to ensure they are available
     load_bashrc_variables()
 
