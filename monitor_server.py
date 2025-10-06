@@ -353,7 +353,6 @@ def display_validators():
         <!-- Aggregate Data Table -->
         <table>
             <tr>
-                <th>MN/eMN</th>
                 <th>ok/eMN</th>
                 <th>inQuorum/eMN</th>
                 <th>credits</th>
@@ -362,15 +361,11 @@ def display_validators():
                 <th>share</th>
                 <th>t.share</th>
                 <th>allNodes</th> 
-                <th>epochNumber</th>
-                <th>firstBlock</th>
-                <th>latestBlock</th>
                 <th>blocksInEpoch</th>
                 <th>epochStartTime</th>
                 <th>epochEndTime</th>
             </tr>
             <tr>
-                <td>{{ masternodes }}/{{ evonodes }}</td>
                 <td>{{ ok_evonodes }}/{{ evonodes }}</td>
                 <td>{{ in_quorum_evonodes }}/{{ evonodes }}</td>
                 <td>{{ total_balance_credits }}</td>
@@ -379,9 +374,6 @@ def display_validators():
                 <td>{{ '{:.2f}'.format(share_proposed_blocks) }}%</td>
                 <td>{{ '{:.2f}'.format(t_share) }}%</td>
                 <td>{{ num_unique_validators }}</td>
-                <td>{{ epoch_number }}</td>
-                <td>{{ epoch_first_block_height }}</td>
-                <td>{{ latest_block_height }}</td>
                 <td>{{ blocks_in_epoch }}</td>
                 <td>{{ epoch_start_human }}</td>
                 <td>{{ epoch_end_human }}</td>
