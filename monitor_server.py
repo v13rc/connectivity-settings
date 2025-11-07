@@ -291,11 +291,15 @@ def display_validators():
                 color: #333;
                 font-family: 'Courier New', monospace;
             }
-            table {
+            .table-wrapper {
                 width: 100%;
+                overflow-x: auto;
+            }
+            table {
                 border-collapse: collapse;
-                table-layout: fixed;
+                table-layout: auto;
                 margin-bottom: 20px;
+                min-width: 150px;
             }
             th, td {
                 padding: 8px 12px;
@@ -381,6 +385,7 @@ def display_validators():
         </table>
 
         <!-- Detailed Node Table -->
+        <div class="table-wrapper">
         <table>
             <tr class="header-row">
                 <td class="bold">Server Name</td>
@@ -534,6 +539,7 @@ def display_validators():
                 {% endfor %}
             </tr>
         </table>
+        </div>
         
         <!-- Połączona tabela z walidatorami i blokami -->
         <table>
