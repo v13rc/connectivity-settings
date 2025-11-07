@@ -299,7 +299,7 @@ def display_validators():
                 border-collapse: collapse;
                 table-layout: auto;
                 margin-bottom: 20px;
-                min-width: 100px;
+                min-width: 70px;
             }
             th, td {
                 padding: 8px 12px;
