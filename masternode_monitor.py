@@ -287,17 +287,17 @@ def main(report_url, verbose=False):
         verbose
     )
     if balance_response:
-    try:
-        balance_json = json.loads(balance_response)
-        balance = balance_json.get("v0", {}).get("balance")
-
-        if balance is None:
+        try:
+            balance_json = json.loads(balance_response)
+            balance = balance_json.get("v0", {}).get("balance")
+    
+            if balance is None:
+                balance = 0
+            else:
+                balance = int(balance)
+    
+        except (json.JSONDecodeError, TypeError, ValueError):
             balance = 0
-        else:
-            balance = int(balance)
-
-    except (json.JSONDecodeError, TypeError, ValueError):
-        balance = 0
 
     # Step 7: Get latest block validator using the updated command
     latest_block_validator = run_command(
