@@ -286,16 +286,17 @@ def main(report_url, verbose=False):
         f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"id\": \"{platform_protx_hash}\"}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
         verbose
     )
+    
     if balance_response:
         try:
             balance_json = json.loads(balance_response)
             balance = balance_json.get("v0", {}).get("balance")
-    
+            
             if balance is None:
                 balance = 0
             else:
                 balance = int(balance)
-    
+                
         except (json.JSONDecodeError, TypeError, ValueError):
             balance = 0
 
