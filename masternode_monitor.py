@@ -286,7 +286,6 @@ def main(report_url, verbose=False):
         f"grpcurl -proto platform.proto -d '{{\"v0\": {{\"id\": \"{platform_protx_hash}\"}} }}' {platform_service_address} org.dash.platform.dapi.v0.Platform/getIdentityBalance",
         verbose
     )
-    
     if balance_response:
         try:
             balance_json = json.loads(balance_response)
@@ -301,7 +300,7 @@ def main(report_url, verbose=False):
             balance = 0
     else:
         balance = 0
-
+    
     # Step 7: Get latest block validator using the updated command
     latest_block_validator = run_command(
         f"curl -s http://127.0.0.1:26657/block?height={latest_block_height} | jq -r '.block.header.proposer_pro_tx_hash'",
